@@ -5,3 +5,6 @@ redis:
 cookie:
   secret: w@tever
   key: jsessionid
+
+session:
+  secret: w@tever-s3ss!@n
