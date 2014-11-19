@@ -1,0 +1,33 @@
+{
+  "name": "scalable-chat",
+  "version": "0.0.1",
+  "description": "a super scalable chat server",
+  "main": "index.js",
+  "dependencies": {
+    "lodash": "^2.4.1",
+    "redis": "^0.12.1",
+    "express": "^4.10.2",
+    "config": "^1.8.1",
+    "sockjs": "^0.3.11"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gmanvn/scalable-chat.git"
+  },
+  "keywords": [
+    "scalable",
+    "realtime",
+    "chat",
+    "nodejs"
+  ],
+  "author": "Tung Vu <me@tungv.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gmanvn/scalable-chat/issues"
+  },
+  "homepage": "https://github.com/gmanvn/scalable-chat"
+}
