@@ -5,3 +5,9 @@ app.controller 'ConversationCtrl', class ConversationCtrl
     id = $scope.id = $stateParams.id
 
     $scope.conv = @chat.getConversation id
+
+    $scope.sendMessage = ()->
+      message = $scope.message
+      $scope.message = ''
+
+      chat.sendMessage message, id

@@ -1,7 +1,7 @@
 app = angular.module 'scalable-chat'
 app.factory 'socket', (socketFactory)-> socketFactory()
 
-app.service 'chat', ($rootScope, socket, $http, $state)->
+app.service 'chat', ($rootScope, socket, $http, $state, @makeFingerprint)->
   chat = this
   conversations = {}
   @signIn = ->
@@ -67,6 +67,14 @@ app.service 'chat', ($rootScope, socket, $http, $state)->
 
     @updateConversation id
     return conv
+
+  @sendMessage = (body, conversationId)->
+    socket.emit 'chat message', {
+      body
+      conversationId
+      client_fingerprint: @makeFingerprint()
+    }
+
 
 
   return

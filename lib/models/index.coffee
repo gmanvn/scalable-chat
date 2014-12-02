@@ -21,4 +21,8 @@ class Model
       logger.fatal "Cannot load model %s", modelName.bold.cyan, ex
 
 
+  ## static methods
+  objectId: -> mongoose.Types.ObjectId()
+
+
 module.exports = Model

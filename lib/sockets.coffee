@@ -20,7 +20,9 @@ class ScalableChatSocket
       subClient: redisSubClient
     }
 
-    Conversation = @scalableChatServer.models.models.conversation
+    ModelFactory = @scalableChatServer.models
+
+    Conversation = ModelFactory.models.conversation
 
 
     io.sockets.on 'connection', (socket)->
@@ -78,15 +80,19 @@ class ScalableChatSocket
 
 
 
-      socket.on 'new user', (user)->
-        logger.debug 'new user', user.username
-        socket.broadcast.emit 'new user', user
-
-
       socket.on 'chat message', (message)->
-        logger.info 'new chat message', message
+        logger.info "new chat message: %s from %s", message.body.bold.yellow, socket.username
 
-        io.emit 'chat message', message
+        message.sender = socket.username
+        message._id = ModelFactory.objectId()
+
+
+
+
+        fibrous.run ->
+
+          Conversation.sync.findByIdAndUpdate message.conversationId,
+            $push: history: message
 
 
 module.exports = ScalableChatSocket
