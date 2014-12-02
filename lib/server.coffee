@@ -16,20 +16,16 @@ class ScalableChatServer
 
   constructor: (config)->
     @app = express()
-    @redisPubClient = redis.createClient(config.redis.port, config.redis.host)
-    @redisSubClient = redis.createClient(config.redis.port, config.redis.host)
-    @redisStoreClient = redis.createClient(config.redis.port, config.redis.host)
 
-    @app.use express.static './app'
-    @app.use cookieParser config.cookie
+    ## setup
+    @setupRedis config
+    @setupMiddleware config
 
-    sessionConfig = config.session
-    sessionConfig.store = new RedisStore {
-      client: @redisStoreClient
-    }
+    ## init model
+    Model = require('./models/index')
+    @models = new Model config.mongo
 
-    @app.use session sessionConfig
-
+    ## init Socket Server
     @ws = new ScalableChatSocket this
 
 
@@ -40,5 +36,26 @@ class ScalableChatServer
     logger.info 'ScalableChatServer start listening!\nconfiguration:\n  port: %s\n  env:  %s', String(port).bold.cyan, env.bold.cyan
 
     @ws.start(@redisPubClient, @redisSubClient)
+
+  setupMiddleware: (config)->
+    ## static
+    @app.use express.static './app'
+
+    ## cookie
+    @app.use cookieParser config.cookie.secret, config.cookie
+
+    ## session
+    sessionConfig = config.session
+    sessionConfig.store = new RedisStore {
+      client: @redisStoreClient
+    }
+
+    @app.use session sessionConfig
+
+  setupRedis: (config)->
+    @redisPubClient = redis.createClient(config.redis.port, config.redis.host)
+    @redisSubClient = redis.createClient(config.redis.port, config.redis.host)
+    @redisStoreClient = redis.createClient(config.redis.port, config.redis.host)
+
 
 module.exports = ScalableChatServer

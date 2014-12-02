@@ -1,0 +1,9 @@
+//
+   Created by siliconprime on 11/20/14.
+
+section
+   form(ng-hide="username", ng-submit="setUsername()")
+      //input(type="text", ng-model="submittingUsername", required, minlength="4", placeholder="pick a username...")
+      //button Set
+
+      button(ng-repeat="username in usernames", ng-click="setUsername(username)") {{ username }}

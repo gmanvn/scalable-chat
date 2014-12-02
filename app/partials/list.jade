@@ -1,0 +1,13 @@
+//
+   Created by siliconprime on 11/20/14.
+
+section
+   header
+      h1 Signed as {{ username }}
+      button(ng-click="list.logout()") log out
+   ul
+      li(ng-repeat="user in online")
+         a(href="#", ng-click="list.chatWith(user)") {{ user }}
+
+   section#conversations
+      div(ui-view="conversations")
