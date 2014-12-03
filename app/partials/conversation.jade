@@ -10,6 +10,7 @@ section#conversation
         span.message-timestamp {{ message.timestamp | date}}
         | :
         span.message-body {{ message.body }}
+        em.message-status ({{ message.status }})
 
   #control
     form(name="contentEditor", ng-submit="sendMessage()")

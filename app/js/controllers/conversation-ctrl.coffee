@@ -10,4 +10,4 @@ app.controller 'ConversationCtrl', class ConversationCtrl
       message = $scope.message
       $scope.message = ''
 
-      chat.directMessage message, $scope.conv.other
+      chat.directMessage message, $scope.conv

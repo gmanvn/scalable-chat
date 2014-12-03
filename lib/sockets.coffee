@@ -124,7 +124,7 @@ class ScalableChatSocket
           socket.username.bold.grey, destination.bold.grey,
           message.body.bold.yellow
 
-        chatService.directMessage io, socket.username, destination, message, (ex)->
+        chatService.directMessage io, socket, socket.username, destination, message, (ex)->
           if ex
             logger.warn "Error while attempt to send direct message", ex
             socket.emit "!ERR: message not send", message, ex

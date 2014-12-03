@@ -10,7 +10,7 @@ module.exports = class ChatService
     socket.username = username
     socket.join "user-#{ username }"
 
-  directMessage: fibrous (io, from, to, message)->
+  directMessage: fibrous (io, socket, from, to, message)->
     unless from and to
       throw new Error 'Lacking from or to'
 
@@ -44,7 +44,12 @@ module.exports = class ChatService
     conversation.history.push message
 
     ## async, no need to wait
-    conversation.save()
+    conversation.save (err)->
+      if err
+        logger.error "Cannot save message %s in conversation %s", message._id, conversation._id
+        return
+
+      socket.emit "outgoing message sent", conversation._id, message.client_fingerprint
 
     message.conversationId = conversation._id
 

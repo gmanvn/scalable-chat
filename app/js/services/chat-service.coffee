@@ -68,11 +68,26 @@ app.service 'chat', ($rootScope, socket, $http, $state, @makeFingerprint)->
     @updateConversation id
     return conv
 
-  @directMessage = (body, destination)->
-    socket.emit 'outgoing message', {
+  @directMessage = (body, conversation)->
+    destination = conversation.other
+    message = {
+      sender: $rootScope.username
       body
       client_fingerprint: @makeFingerprint()
-    }, destination
+    }
+
+    socket.emit 'outgoing message', message, destination
+    message.status = 'sending...'
+    conversation.history.push message
+
+
+
+  socket.on 'outgoing message sent', (conversationId, messageFingerprint)->
+    conv = conversations[conversationId]
+    for message in conv.history when message.client_fingerprint is messageFingerprint
+      message.status = 'sent'
+      break
+
 
   socket.on 'incoming message', (message) ->
     conversationId = message.conversationId
