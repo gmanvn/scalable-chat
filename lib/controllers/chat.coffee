@@ -2,13 +2,36 @@ fibrous = require 'fibrous'
 should = require 'should'
 logger = require('log4js').getLogger('CHAT')
 
+logError = (err)-> logger.warn err if err
+
 module.exports = class ChatService
 
   constructor: (@ModelFactory) ->
 
   newSocket: (socket, username)->
+    return unless 'string' is typeof username
+    logger.debug '%s signed in', username.bold.cyan
     socket.username = username
     socket.join "user-#{ username }"
+
+    @pushNotification socket, username, logError
+
+  pushNotification: fibrous (socket, username)->
+    Conversation = @ModelFactory.models.conversation
+
+    ## get all conversations that involves this user and has undelivered msg
+    unreadConversations = Conversation.sync.find({
+      participants: username
+      undelivered_count: $gte: 1
+    })
+
+    ## filter out those are only new for the other party and sent undelivered msg to this user
+    unreadConversations.forEach (conv)->
+      newMessages = conv.newMessageFor username
+
+      socket.emit 'incoming message', conv._id, newMessages if newMessages.length
+
+
 
   directMessage: fibrous (io, socket, from, to, message)->
     unless from and to
@@ -25,9 +48,9 @@ module.exports = class ChatService
     ## check if conversation is read-only
     if conversation and conversation.readOnly
       throw new {
-        code: 'READONLY'
-        name: 'MSG_NOT_SENT'
-        message: 'This conversation is read-only'
+      code: 'READONLY'
+      name: 'MSG_NOT_SENT'
+      message: 'This conversation is read-only'
       }
 
     ## create a new one and save if no conversation found (they haven't chatted)
@@ -39,12 +62,11 @@ module.exports = class ChatService
       conversation.sync.save()
 
     ## now, participants are allow to send message to each other
-    message._id = @ModelFactory.objectId()
     message.sender = from
-    conversation.history.push message
+    message._id = @ModelFactory.objectId()
 
     ## async, no need to wait
-    conversation.save (err)->
+    conversation.pushMessage message, (err)->
       if err
         logger.error "Cannot save message %s in conversation %s", message._id, conversation._id
         return
@@ -55,14 +77,11 @@ module.exports = class ChatService
     io.to("user-#{ to }").emit('incoming message', conversation._id, message)
 
   markDelivered: fibrous (io, socket, conversationId, messageId) ->
-
     Conversation = @ModelFactory.models.conversation
     conv = Conversation.sync.findById conversationId
 
     return unless conv
     message = conv.history.id messageId
-    message.delivery_timestamp = Date.now()
-    message.delivered = true
-    conv.save()
+    conv.markDelivered messageId, ->
 
     io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)

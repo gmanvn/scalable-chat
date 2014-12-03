@@ -52,8 +52,7 @@ class ScalableChatSocket
       }
 
       socket.on 'user signed in', (username)->
-        return unless 'string' is typeof username
-        logger.debug '%s signed in', username.bold.cyan
+        logger.trace 'user signed in', username
         chatService.newSocket socket, username
 
       socket.on 'conversation started', (other) ->
@@ -134,7 +133,7 @@ class ScalableChatSocket
 
         chatService.markDelivered io, socket, conversationId, messageId, (err)->
           if err
-            logger.warn "Error while attempt to mark message %s as delivered", messageId.bold
+            logger.warn "Error while attempt to mark message %s as delivered", messageId?.bold, err
 
 
 

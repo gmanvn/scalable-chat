@@ -65,7 +65,7 @@ app.service 'chat', ($rootScope, socket, $http, $state, @makeFingerprint)->
     unless conv
       conv = conversations[id] = {}
 
-    @updateConversation id
+    #@updateConversation id
     return conv
 
   @directMessage = (body, conversation)->
@@ -91,13 +91,17 @@ app.service 'chat', ($rootScope, socket, $http, $state, @makeFingerprint)->
       break
 
 
-  socket.on 'incoming message', (conversationId, message) ->
+  socket.on 'incoming message', (conversationId, messages) ->
     conv = conversations[conversationId]
-    conversation.history ?= []
-    conv.history.push message
+    conv.history ?= []
+    messages = [messages] unless Array.isArray messages
 
+    messages.forEach (message)->
+      conv.history.push message
 
-    socket.emit 'incoming message received', conversationId, message._id
+      ## acknowledge back for delivery status
+      socket.emit 'incoming message received',
+        conversationId, message._id
 
   socket.on 'outgoing message delivered', (conversationId, messageFingerprint) ->
     conv = conversations[conversationId]
