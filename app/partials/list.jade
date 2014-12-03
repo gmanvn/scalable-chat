@@ -7,7 +7,7 @@ section
       button(ng-click="list.logout()") log out
    ul
       li(ng-repeat="user in online")
-         a(href="#", ng-click="list.chatWith(user)") {{ user }}
+         a(ng-click="list.chatWith(user)") {{ user }}
 
    section#conversations
       div(ui-view="conversations")

@@ -1,16 +1,25 @@
 SocketServer = require 'socket.io'
 RedisAdapter = require 'socket.io-redis'
 fibrous = require 'fibrous'
+#############
 log4js = require 'log4js'
 logger = log4js.getLogger('socket');
+#############
+ChatService = require './controllers/chat'
+
 
 class ScalableChatSocket
 
   constructor: (@scalableChatServer) ->
     @app = scalableChatServer.app
+    @ModelFactory = scalableChatServer.models
+
+    ## init service
+    @chatService = new ChatService @ModelFactory
 
 
-  start: (redisPubClient,redisSubClient) ->
+
+  start: (redisPubClient, redisSubClient) ->
     httpServer = @scalableChatServer.httpServer
     throw new Error 'http is not started' unless httpServer
     io = new SocketServer httpServer
@@ -20,9 +29,10 @@ class ScalableChatSocket
       subClient: redisSubClient
     }
 
-    ModelFactory = @scalableChatServer.models
 
-    Conversation = ModelFactory.models.conversation
+    Conversation = @ModelFactory.models.conversation
+
+    chatService = @chatService
 
 
     io.sockets.on 'connection', (socket)->
@@ -44,16 +54,18 @@ class ScalableChatSocket
       socket.on 'user signed in', (username)->
         return unless 'string' is typeof username
         logger.debug '%s signed in', username.bold.cyan
-        socket.username = username
+        chatService.newSocket socket, username
 
       socket.on 'conversation started', (other) ->
         participants = [socket.username, other]
         logger.info 'Start conversation between %s and %s', participants...
 
+
         fibrous.run ->
           ## get conversation of both participants
           conv = Conversation.sync.findOne({
-            participants: $all: participants
+            participants:
+              $all: participants
           })
 
           ## if no conversation found (they haven't chatted), create a new one
@@ -64,6 +76,8 @@ class ScalableChatSocket
 
             conv.sync.save()
 
+
+          socket.join "conversation-#{conv._id}"
           socket.conversations[other] = conv._id
           socket.emit 'incoming conversation', conv.toObject()
 
@@ -78,21 +92,41 @@ class ScalableChatSocket
           socket.emit 'conversation not found', id
 
 
+      socket.on 'outgoing message', (message, destination)->
+        unless socket.username
+          logger.warn "direct message without sender"
+          socket.emit "!ERR: message not sent", message, {
+            code: 'NO_SENDER'
+            name: 'MSG_NOT_SENT'
+            message: 'direct message without sender'
+          }
+          return
 
+        unless destination
+          logger.warn "direct message without destination"
+          socket.emit "!ERR: message not sent", message, {
+            code: 'NO_DESTINATION'
+            name: 'MSG_NOT_SENT'
+            message: 'direct message without destination'
+          }
+          return
 
-      socket.on 'chat message', (message)->
-        logger.info "new chat message: %s from %s", message.body.bold.yellow, socket.username
+        unless message.body
+          logger.warn "direct message without body"
+          socket.emit "!ERR: message not sent", message, {
+            code: 'NO_BODY'
+            name: 'MSG_NOT_SENT'
+            message: 'direct message without body'
+          }
+          return
 
-        message.sender = socket.username
-        message._id = ModelFactory.objectId()
+        logger.info "direct message: %s -> %s: %s",
+          socket.username.bold.grey, destination.bold.grey,
+          message.body.bold.yellow
 
-
-
-
-        fibrous.run ->
-
-          Conversation.sync.findByIdAndUpdate message.conversationId,
-            $push: history: message
-
+        chatService.directMessage io, socket.username, destination, message, (ex)->
+          if ex
+            logger.warn "Error while attempt to send direct message", ex
+            socket.emit "!ERR: message not send", message, ex
 
 module.exports = ScalableChatSocket
