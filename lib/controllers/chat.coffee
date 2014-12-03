@@ -51,8 +51,18 @@ module.exports = class ChatService
 
       socket.emit "outgoing message sent", conversation._id, message.client_fingerprint
 
-    message.conversationId = conversation._id
-
     ## we will signal immediately to the destination about this message
-    io.to("user-#{ to }").emit('incoming message', message)
+    io.to("user-#{ to }").emit('incoming message', conversation._id, message)
 
+  markDelivered: fibrous (io, socket, conversationId, messageId) ->
+
+    Conversation = @ModelFactory.models.conversation
+    conv = Conversation.sync.findById conversationId
+
+    return unless conv
+    message = conv.history.id messageId
+    message.delivery_timestamp = Date.now()
+    message.delivered = true
+    conv.save()
+
+    io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)

@@ -129,4 +129,13 @@ class ScalableChatSocket
             logger.warn "Error while attempt to send direct message", ex
             socket.emit "!ERR: message not send", message, ex
 
+      socket.on 'incoming message received', (conversationId, messageId) ->
+        logger.info 'marking message %s in conversation %s as delivered', messageId, conversationId
+
+        chatService.markDelivered io, socket, conversationId, messageId, (err)->
+          if err
+            logger.warn "Error while attempt to mark message %s as delivered", messageId.bold
+
+
+
 module.exports = ScalableChatSocket

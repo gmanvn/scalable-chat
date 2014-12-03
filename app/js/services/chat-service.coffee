@@ -69,6 +69,7 @@ app.service 'chat', ($rootScope, socket, $http, $state, @makeFingerprint)->
     return conv
 
   @directMessage = (body, conversation)->
+    return false unless body
     destination = conversation.other
     message = {
       sender: $rootScope.username
@@ -78,8 +79,9 @@ app.service 'chat', ($rootScope, socket, $http, $state, @makeFingerprint)->
 
     socket.emit 'outgoing message', message, destination
     message.status = 'sending...'
-    conversation.history.push message
 
+    conversation.history ?= []
+    conversation.history.push message
 
 
   socket.on 'outgoing message sent', (conversationId, messageFingerprint)->
@@ -89,9 +91,18 @@ app.service 'chat', ($rootScope, socket, $http, $state, @makeFingerprint)->
       break
 
 
-  socket.on 'incoming message', (message) ->
-    conversationId = message.conversationId
+  socket.on 'incoming message', (conversationId, message) ->
     conv = conversations[conversationId]
+    conversation.history ?= []
     conv.history.push message
+
+
+    socket.emit 'incoming message received', conversationId, message._id
+
+  socket.on 'outgoing message delivered', (conversationId, messageFingerprint) ->
+    conv = conversations[conversationId]
+    for message in conv.history when message.client_fingerprint is messageFingerprint
+      message.status = 'delivered'
+      break
 
   return
