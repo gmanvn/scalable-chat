@@ -7,6 +7,9 @@ app.controller 'HomeCtrl', class HomeCtrl
       'user-0002'
       'user-0003'
       'user-0004'
+
+      '+841265752223'
+      '+84906591398'
     ]
 
     $scope.setUsername = (username)->

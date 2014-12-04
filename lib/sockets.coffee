@@ -47,7 +47,9 @@ class ScalableChatSocket
         online: [
           'user-0001',
           'user-0002',
-          'user-0003'
+          'user-0003',
+          '+841265752223'
+          '+84906591398'
         ]
       }
 
