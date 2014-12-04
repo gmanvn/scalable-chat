@@ -92,8 +92,9 @@ class ScalableChatSocket
 
 
       socket.on 'outgoing message', (message, destination)->
+        [message, destination] = message if Array.isArray message
 
-        unless socket.username
+        unless message.sender
           logger.warn "direct message without sender"
           socket.emit "!ERR: message not sent", message, {
             code: 'NO_SENDER'
