@@ -1,2 +1,7 @@
 node_modules
 .idea
+
+app/components
+app/js/**/*.js
+app/js/**/*.map
+app/partials/*.html

@@ -40,7 +40,7 @@ class ScalableChatSocket
       socket.conversations = {}
 
       socket.on 'disconnect', ->
-        logger.info 'disconnected'
+        logger.info '%s disconnected', socket.username
         io.emit 'user leave'
 
       socket.emit 'online users', {
@@ -92,6 +92,7 @@ class ScalableChatSocket
 
 
       socket.on 'outgoing message', (message, destination)->
+
         unless socket.username
           logger.warn "direct message without sender"
           socket.emit "!ERR: message not sent", message, {
