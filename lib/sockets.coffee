@@ -7,6 +7,16 @@ logger = log4js.getLogger('socket');
 #############
 ChatService = require './controllers/chat'
 
+## helpers
+autoSpread = (fn, context=this)->
+
+  return (first)->
+    args = arguments
+    args = first if args.length is 1 and Array.isArray first
+
+    fn.apply context, args
+
+
 
 class ScalableChatSocket
 
@@ -93,8 +103,7 @@ class ScalableChatSocket
           socket.emit 'conversation not found', id
 
 
-      socket.on 'outgoing message', (message, destination)->
-        [message, destination] = message if Array.isArray message
+      socket.on 'outgoing message', autoSpread (message, destination)->
 
         unless message.sender
           logger.warn "direct message without sender"
@@ -132,7 +141,7 @@ class ScalableChatSocket
             logger.warn "Error while attempt to send direct message", ex
             socket.emit "!ERR: message not send", message, ex
 
-      socket.on 'incoming message received', (conversationId, messageId) ->
+      socket.on 'incoming message received', autoSpread (conversationId, messageId) ->
         logger.info 'marking message %s in conversation %s as delivered', messageId, conversationId
 
         chatService.markDelivered io, socket, conversationId, messageId, (err)->
