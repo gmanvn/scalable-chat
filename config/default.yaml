@@ -9,4 +9,4 @@ cookie:
 session:
   secret: w@tever-s3ss!@n
 
-mongo: localhost
+mongo: localhost/development
