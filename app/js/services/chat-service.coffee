@@ -1,5 +1,7 @@
 app = angular.module 'scalable-chat'
-app.factory 'socket', (socketFactory)-> socketFactory()
+app.factory 'socket', (socketFactory)->
+  ioSocket = io.connect '/', {transports: ['websocket']}
+  socketFactory({ioSocket})
 
 app.service 'chat', ($rootScope, socket, $http, $state, @makeFingerprint)->
   chat = this

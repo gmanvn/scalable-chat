@@ -54,9 +54,9 @@ class ScalableChatServer
 
   setupRedis: (config)->
     opts = return_buffers:true
-    @redisPubClient = redis.createClient(config.redis.port, config.redis.host)
-    @redisSubClient = redis.createClient(config.redis.port, config.redis.host)
-    @redisStoreClient = redis.createClient(config.redis.port, config.redis.host)
+    @redisPubClient = redis.createClient(config.redis.port, config.redis.host, opts)
+    @redisSubClient = redis.createClient(config.redis.port, config.redis.host, opts)
+    @redisStoreClient = redis.createClient(config.redis.port, config.redis.host, opts)
 
 
 module.exports = ScalableChatServer
