@@ -148,6 +148,9 @@ class ScalableChatSocket
           if err
             logger.warn "Error while attempt to mark message %s as delivered", messageId?.bold, err
 
+      socket.on 'start typing', autoSpread (conversationId, username, participants)->
+        logger.info '%s is typing in conversation %s', username, conversationId
+        chatService.typing conversationId, username, participants
 
 
 module.exports = ScalableChatSocket
