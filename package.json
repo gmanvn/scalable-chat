@@ -2,8 +2,9 @@
   "name": "scalable-chat",
   "version": "0.0.1",
   "description": "a super scalable chat server",
-  "main": "index.js",
+  "main": "./server.js",
   "dependencies": {
+    "coffee-script": "^1.8.0",
     "colors": "^1.0.3",
     "config": "^1.8.1",
     "connect-redis": "^2.1.0",
