@@ -86,7 +86,7 @@ module.exports = class ChatService
 
     io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
 
-  typing: fibrous (conversationId, username, participants)->
+  typing: fibrous (io, socket, conversationId, username, participants)->
 
     participants.forEach (other)->
       io.to("user-#{ other }").emit('other is typing', conversationId, username)
