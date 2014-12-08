@@ -34,7 +34,7 @@ module.exports = class ChatService
         msg.client_fingerprint
 
       socket.emit 'incoming message', conv._id, newMessages if newMessages.length
-      socket.emit 'undelivered message', conv._id, undeliveredMessages if undeliveredMessages.length
+      socket.emit 'undelivered message', conv._id, undeliveredMessages
 
 
   directMessage: fibrous (io, socket, from, to, message)->
