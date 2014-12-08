@@ -22,7 +22,7 @@ module.exports = class ChatService
     ## get all conversations that involves this user and has undelivered msg
     unreadConversations = Conversation.sync.find({
       participants: username
-      undelivered_count: $gte: 1
+#      undelivered_count: $gte: 1
     })
 
     ## filter out those are only new for the other party and sent undelivered msg to this user
