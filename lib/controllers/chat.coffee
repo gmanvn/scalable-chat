@@ -28,9 +28,13 @@ module.exports = class ChatService
     ## filter out those are only new for the other party and sent undelivered msg to this user
     unreadConversations.forEach (conv)->
       newMessages = conv.newMessageFor username
+      undeliveredMessages = conv.undeliveredOf username
+
+      undeliveredMessages = undeliveredMessages.map (msg)->
+        msg.client_fingerprint
 
       socket.emit 'incoming message', conv._id, newMessages if newMessages.length
-
+      socket.emit 'undelivered message', conv._id, undeliveredMessages if undeliveredMessages.length
 
 
   directMessage: fibrous (io, socket, from, to, message)->

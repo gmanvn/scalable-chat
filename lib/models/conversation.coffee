@@ -72,5 +72,8 @@ module.exports = (connection) ->
       $inc: undelivered_count: -1
     }
 
+  schema.methods.undeliveredOf = (username) ->
+    @history.filter (msg)->
+      msg.sender is username and not msg.delivered
 
   Conversation = connection.model 'conversation', schema
