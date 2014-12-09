@@ -29,12 +29,13 @@ class ScalableChatSocket
 
 
 
-  start: (redisPubClient, redisSubClient) ->
+  start: (redisPubClient, redisSubClient, key) ->
     httpServer = @scalableChatServer.httpServer
     throw new Error 'http is not started' unless httpServer
     io = new SocketServer httpServer
 
     io.adapter RedisAdapter {
+      key
       pubClient: redisPubClient
       subClient: redisSubClient
     }

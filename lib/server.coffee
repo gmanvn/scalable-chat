@@ -35,7 +35,7 @@ class ScalableChatServer
     @httpServer = @app.listen(port)
     logger.info 'ScalableChatServer start listening!\nconfiguration:\n  port: %s\n  env:  %s', String(port).bold.cyan, env.bold.cyan
 
-    @ws.start(@redisPubClient, @redisSubClient)
+    @ws.start(@redisPubClient, @redisSubClient, "scalable-chat.#{ env }")
 
   setupMiddleware: (config)->
     ## static
