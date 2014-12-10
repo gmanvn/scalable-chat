@@ -47,22 +47,12 @@ class ScalableChatSocket
 
 
     io.sockets.on 'connection', (socket)->
-      logger.info 'new connection %s at %s', socket.handshake.address.bold, socket.handshake.time
+      logger.info 'new connection %s at %s', socket.handshake.headers['x-forwarded-for'], socket.handshake.time
       socket.conversations = {}
 
       socket.on 'disconnect', ->
         logger.info '%s disconnected', socket.username
         io.emit 'user leave'
-
-      socket.emit 'online users', {
-        online: [
-          'user-0001',
-          'user-0002',
-          'user-0003',
-          '+841265752223'
-          '+84906591398'
-        ]
-      }
 
       socket.on 'user signed in', (username)->
         logger.trace 'user signed in', username
