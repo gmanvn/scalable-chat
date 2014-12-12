@@ -16,6 +16,9 @@ module.exports = class ChatService
 
     @pushNotification socket, username, logError
 
+  isSignedIn: (socket)->
+    'string' is typeof socket.username
+
   pushNotification: fibrous (socket, username)->
     Conversation = @ModelFactory.models.conversation
 

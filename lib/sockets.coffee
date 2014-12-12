@@ -47,15 +47,20 @@ class ScalableChatSocket
 
 
     io.sockets.on 'connection', (socket)->
-      logger.info 'new connection %s at %s', socket.handshake.headers['x-forwarded-for'], socket.handshake.time
       socket.conversations = {}
+      ip = socket.handshake.headers['x-forwarded-for'] or socket.handshake.address
+
+      ## forcefully close socket if it hasn't signed in after 2s
+      setTimeout ->
+        socket.disconnect() unless chatService.isSignedIn(socket)
+      , 2000
 
       socket.on 'disconnect', ->
-        logger.info '%s disconnected', socket.username
+        logger.info '%s disconnected', socket.username or 'an unsigned in user'
         io.emit 'user leave'
 
       socket.on 'user signed in', (username)->
-        logger.trace 'user signed in', username
+        logger.trace 'user [%s] signed in on ip: %s', username, ip
         chatService.newSocket socket, username
 
       socket.on 'conversation started', (other) ->
