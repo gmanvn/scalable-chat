@@ -14,6 +14,15 @@ module.exports = (connection) ->
       type: String
       required: true
 
+    content_type:
+      type: String
+      enum: [
+        'plain-text'
+        'private-key'
+        'public-key'
+      ]
+      default: 'plain-text'
+
     delivered:
       type: Boolean
       default: false
@@ -56,20 +65,21 @@ module.exports = (connection) ->
     @history.filter fn
 
   schema.methods.pushMessage = fibrous (message)->
-
     Conversation.sync.findByIdAndUpdate @_id,
-      $inc: undelivered_count: 1
-      $push: history: message
+      $inc:
+        undelivered_count: 1
+      $push:
+        history: message
 
   schema.methods.markDelivered = fibrous (messageId)->
-
     Conversation.sync.findOneAndUpdate {
       _id: @_id
       'history._id': connection.Types.ObjectId messageId
     }, {
       'history.$.delivered': true
       'history.$.delivery_timestamp': Date.now()
-      $inc: undelivered_count: -1
+      $inc:
+        undelivered_count: -1
     }
 
   schema.methods.undeliveredOf = (username) ->

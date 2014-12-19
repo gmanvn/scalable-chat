@@ -11,21 +11,19 @@ module.exports = class ChatService
   newSocket: fibrous (socket, username, token)->
     return socket.disconnect() unless 'string' is typeof username
     return socket.disconnect() unless token?.length
-    logger.debug '%s signed in with token=%s', username.bold.cyan, token.bold.cyan
 
     auth = @ModelFactory.models.authentication_token.sync.findOne {
       CustomerId: username
       AuthenticationKey: token
     }
+
     unless auth
       logger.warn 'invalid user/token: %s %s',username.bold.cyan, token.bold.cyan
       return socket.disconnect()
 
-
+    logger.debug '%s signed in with token=%s', username.bold.cyan, token.bold.cyan
     socket.username = username
     socket.join "user-#{ username }"
-
-
 
     @pushNotification socket, username, logError
 
