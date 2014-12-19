@@ -10,4 +10,4 @@ cookie:
 session:
   secret: w@tever-s3ss!@n
 
-mongo: localhost/development
+mongo: localhost/chat_test

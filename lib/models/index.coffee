@@ -9,6 +9,7 @@ class Model
     @models = {}
     logger.info 'Loading Models =================='
     @loadModel 'conversation'
+    @loadModel 'customer'
     logger.info '=================================\n'
 
   loadModel: (modelName) ->
@@ -16,7 +17,7 @@ class Model
     try
       model = require("./#{modelName}") @_connection
       @models[modelName] = model
-      logger.info '  * Model %s loaded!', modelName.bold.blue
+      logger.info '  * Model %s\t loaded!', modelName.bold.blue
     catch ex
       logger.fatal "Cannot load model %s", modelName.bold.cyan, ex
 

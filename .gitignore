@@ -7,3 +7,4 @@ app/js/**/*.map
 app/partials/*.html
 config/*
 !config/default.yaml
+!config/test.yaml
