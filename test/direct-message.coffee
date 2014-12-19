@@ -13,8 +13,8 @@ module.exports = ({users, connect, Conversation})->
     user3 = users[3]._id
 
     ## signin respectively
-    sender.emit 'user signed in', users[2]._id
-    receiver.emit 'user signed in', users[3]._id
+    sender.emit 'user signed in', user2, 'key:' + user2
+    receiver.emit 'user signed in', user3, 'key:' + user3
 
     message =
       sender: String user2

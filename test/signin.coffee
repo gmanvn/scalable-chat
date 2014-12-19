@@ -1,14 +1,19 @@
 fibrous = require 'fibrous'
 
 module.exports = ({users, connect})->
-  user0 = users[0]._id
-  user1 = users[1]._id
+  user0 = ''
+  user1 = ''
+
+  before ->
+    user0 = users[0]._id
+    user1 = users[1]._id
 
   it 'should get undelivered messages on signing in', (done) ->
     ## user0's device connecting to server
     client0 = connect()
 
     ## sign in as user0
+    console.log 'user0', user0
     client0.emit 'user signed in', user0, 'key:' + user0
 
     client0.on 'undelivered message', (conversation, messages)->

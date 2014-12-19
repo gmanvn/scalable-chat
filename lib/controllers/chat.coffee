@@ -17,8 +17,10 @@ module.exports = class ChatService
       CustomerId: username
       AuthenticationKey: token
     }
+    unless auth
+      logger.warn 'invalid user/token: %s %s',username.bold.cyan, token.bold.cyan
+      return socket.disconnect()
 
-    return socket.disconnect() unless auth
 
     socket.username = username
     socket.join "user-#{ username }"
