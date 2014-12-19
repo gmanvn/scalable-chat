@@ -28,26 +28,36 @@ Server = require '../lib/server'
 server = new Server config
 
 
-
 ## init test data
-
+rsa = require 'node-rsa'
+{keys} = require './keypairs'
 ###------------##
   Customer
 ##------------###
 
 before fibrous ->
-  Customer = server.models.models.customer
+  params.Customer = Customer = server.models.models.customer
+  AuthToken = server.models.models.authentication_token
 
   ## remove data
   Customer.sync.remove({})
 
   for userId, index in users
-    customer = new Customer {_id: userId }
-    ## TODO: add public/private keys here
+    customer = new Customer {_id: userId}
+    customer.PublicKey = keys[index].public
     customer.sync.save()
+
+    ## private properties (for testing purpose only)
     customer._conversations = {}
+    customer._private_key = keys[index].private
     users[index] = customer
 
+    ## set auth token
+    auth = new AuthToken {
+      CustomerId: customer._id
+      AuthenticationKey: 'key:'+customer._id
+    }
+    auth.sync.save()
 
 
 ###------------##
@@ -63,14 +73,14 @@ before fibrous ->
   HOUR = 60 * 60 * 1000
   yesterday = now - 24 * HOUR
 
-  Conversation = server.models.models.conversation
+  params.Conversation = Conversation = server.models.models.conversation
 
   ## reset data
   Conversation.sync.remove()
 
   ## helper
-  makeMessage = (sender, body, client_fingerprint, sent_timestamp=Date.now(), delivered=false)->
-    msg = {sender,body, sent_timestamp, client_fingerprint}
+  makeMessage = (sender, body, client_fingerprint, sent_timestamp = Date.now(), delivered = false)->
+    msg = {sender, body, sent_timestamp, client_fingerprint}
     if delivered
       msg.delivered = true
       msg.delivery_timestamp = delivered
@@ -84,7 +94,7 @@ before fibrous ->
     history: [
       makeMessage user0, "hello from u0", "fp:user1:0001", yesterday, yesterday + HOUR
       makeMessage user1, "hi there, i'm u1", "fp:user2:0001", yesterday + 2 * HOUR, yesterday + 2 * HOUR
-      makeMessage user0, "you will see this later","fp:user1:0002", yesterday + 3 * HOUR
+      makeMessage user0, "you will see this later", "fp:user1:0002", yesterday + 3 * HOUR
     ]
     undelivered_count: 1
   }
@@ -98,6 +108,5 @@ before fibrous ->
   server.start 'test', 3000
 
 
-
-#describe "user sign in", -> require('./signin')(params)
+describe "user sign in", -> require('./signin')(params)
 describe "direct message", -> require('./direct-message')(params)

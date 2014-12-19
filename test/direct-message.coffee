@@ -1,6 +1,6 @@
 fibrous = require 'fibrous'
 
-module.exports = ({users, connect})->
+module.exports = ({users, connect, Conversation})->
 
   it 'should send direct message from one user to another', (done)->
     ## establish conenctions for user2 and user3 devices
@@ -49,3 +49,5 @@ module.exports = ({users, connect})->
 
     ## actually send
     sender.emit 'outgoing message', message, user3
+
+  it.skip 'should not store message if receiver is online', (done)->

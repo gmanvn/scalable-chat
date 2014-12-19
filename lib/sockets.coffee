@@ -16,6 +16,7 @@ autoSpread = (fn, context=this)->
 
     fn.apply context, args
 
+logError = (err)-> logger.warn err if err
 
 
 class ScalableChatSocket
@@ -59,9 +60,9 @@ class ScalableChatSocket
         logger.info '%s disconnected', socket.username or 'an unsigned in user'
         io.emit 'user leave'
 
-      socket.on 'user signed in', (username)->
+      socket.on 'user signed in', autoSpread (username, token)->
         logger.trace 'user [%s] signed in on ip: %s', username, ip
-        chatService.newSocket socket, username
+        chatService.newSocket socket, username, token, logError
 
       socket.on 'conversation started', (other) ->
         participants = [socket.username, other]
@@ -150,9 +151,7 @@ class ScalableChatSocket
         else
           logger.info '%s has stop typing in conversation %s', username, conversationId
 
-        chatService.typing io, socket, conversationId, username, participants, isTyping, (err) ->
-          if err
-            logger.warn err
+        chatService.typing io, socket, conversationId, username, participants, isTyping, logError
 
 
 module.exports = ScalableChatSocket

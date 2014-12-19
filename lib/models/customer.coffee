@@ -7,4 +7,4 @@ module.exports = (connection) ->
     PublicKey: String
   }
 
-  Customer = connection.model 'customer', schema
+  connection.model 'customer', schema, 'Customer'

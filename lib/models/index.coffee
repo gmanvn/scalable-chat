@@ -10,6 +10,7 @@ class Model
     logger.info 'Loading Models =================='
     @loadModel 'conversation'
     @loadModel 'customer'
+    @loadModel 'authentication_token'
     logger.info '=================================\n'
 
   loadModel: (modelName) ->
