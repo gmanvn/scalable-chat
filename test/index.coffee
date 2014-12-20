@@ -107,6 +107,5 @@ before fibrous ->
 before fibrous ->
   server.start 'test', 3000
 
-
 describe "user sign in", -> require('./signin')(params)
 describe "direct message", -> require('./direct-message')(params)

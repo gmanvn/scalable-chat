@@ -4,9 +4,14 @@ logger = require('log4js').getLogger('CHAT')
 
 logError = (err)-> logger.warn err if err
 
+## maximum time amount for receiver to mark messages as delivery
+## after this timeout, message will be stored in mongo
+DELIVERY_TIMEOUT = 500
+
 module.exports = class ChatService
 
   constructor: (@ModelFactory) ->
+    @queue = {}
 
   newSocket: fibrous (socket, username, token)->
     return socket.disconnect() unless 'string' is typeof username
@@ -20,6 +25,14 @@ module.exports = class ChatService
     unless auth
       logger.warn 'invalid user/token: %s %s',username.bold.cyan, token.bold.cyan
       return socket.disconnect()
+
+
+
+    ## preload public key of this user for encryption
+    socket.publicKey = @ModelFactory.models.customer.sync.findById(username)?.PublicKey
+
+    unless socket.publicKey
+      logger.warn '%s has no public key', username.bold.cyan
 
     logger.debug '%s signed in with token=%s', username.bold.cyan, token.bold.cyan
     socket.username = username
@@ -81,25 +94,42 @@ module.exports = class ChatService
 
     ## now, participants are allow to send message to each other
     message.sender = from
-    message._id = @ModelFactory.objectId()
+    id = message._id = @ModelFactory.objectId()
 
-    ## async, no need to wait
-    conversation.pushMessage message, (err)->
-      if err
-        logger.error "Cannot save message %s in conversation %s", message._id, conversation._id
-        return
+    @queue[id] = message
 
-      socket.emit "outgoing message sent", conversation._id, message.client_fingerprint
+    setTimeout =>
+      if @queue[id]
+        ## async, no need to wait
+        conversation.pushMessage message, (err) =>
+          if err
+            logger.error "Cannot save message %s in conversation %s", message._id, conversation._id
+            return
+
+          delete @queue[id]
+
+    , DELIVERY_TIMEOUT
+
+
+
+    socket.emit "outgoing message sent", conversation._id, message.client_fingerprint
 
     ## we will signal immediately to the destination about this message
     io.to("user-#{ to }").emit('incoming message', conversation._id, message)
+
+    return {conversation, message}
 
   markDelivered: fibrous (io, socket, conversationId, messageId) ->
     Conversation = @ModelFactory.models.conversation
     conv = Conversation.sync.findById conversationId
 
     return unless conv
-    message = conv.history.id messageId
+    ## get message from queue, if not there, check history
+    message = @queue[messageId] or conv.history.id messageId
+
+    ## remove from queue so message won't be stored to mongo
+    delete @queue[messageId]
+
     conv.markDelivered messageId, ->
 
     io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)

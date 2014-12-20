@@ -24,7 +24,7 @@ module.exports = ({users, connect, Conversation})->
 
     receiver.on 'incoming message', (_conversation, incomingMessage) ->
       ## cached for testing purpose
-      conversation = _conversation
+      conversation.should.equal _conversation
 
       incomingMessage.should.not.be.a.string
 
@@ -36,7 +36,7 @@ module.exports = ({users, connect, Conversation})->
       receiver.emit 'incoming message received', conversation, incomingMessage._id
 
     sender.on 'outgoing message sent', (_conversation, fingerprint)->
-      conversation.should.equal _conversation
+      conversation = _conversation
       fingerprint.should.equal 'fg:user2:0001'
 
     sender.on 'outgoing message delivered', (_conversation, fingerprint)->
@@ -47,7 +47,10 @@ module.exports = ({users, connect, Conversation})->
       receiver.disconnect()
       done()
 
-    ## actually send
-    sender.emit 'outgoing message', message, user3
+    ## wait 300ms for both client connected
+    setTimeout ->
+      ## actually send
+      sender.emit 'outgoing message', message, user3
+    , 100
 
   it.skip 'should not store message if receiver is online', (done)->

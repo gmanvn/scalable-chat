@@ -14,6 +14,8 @@ autoSpread = (fn, context=this)->
     args = arguments
     args = first if args.length is 1 and Array.isArray first
 
+
+
     fn.apply context, args
 
 logError = (err)-> logger.warn err if err
