@@ -14,7 +14,7 @@ module.exports = ({users, connect})->
 
     ## sign in as user0
     console.log 'user0', user0
-    client0.emit 'user signed in', user0, 'key:' + user0
+    client0.emit 'user signed in', user0, 'key:' + user0, users[0]._private_key
 
     client0.on 'undelivered message', (conversation, messages)->
       messages.length.should.equal 1
@@ -29,7 +29,7 @@ module.exports = ({users, connect})->
     client1 = connect()
 
     ## sign in as user1
-    client1.emit 'user signed in', user1, 'key:' + user1
+    client1.emit 'user signed in', user1, 'key:' + user1, users[1]._private_key
 
     client1.on 'incoming message', (conversation, messages)->
       messages.length.should.equal 1
@@ -45,7 +45,7 @@ module.exports = ({users, connect})->
     client1 = connect()
 
     ## sign in as user1
-    client1.emit 'user signed in', user1, 'fake_key:' + user1
+    client1.emit 'user signed in', user1, 'fake_key:' + user1, users[1]._private_key
 
     client1.on 'incoming message', (conversation, messages)->
       throw new Error 'Should not be here'
@@ -59,7 +59,7 @@ module.exports = ({users, connect})->
     client1 = connect()
 
     ## sign in as user1
-    client1.emit 'user signed in', user0, 'fake_key:' + user0
+    client1.emit 'user signed in', user0, 'fake_key:' + user0, users[0]._private_key
 
     client1.on 'undelivered message', (conversation, messages)->
       throw new Error 'Should not be here'

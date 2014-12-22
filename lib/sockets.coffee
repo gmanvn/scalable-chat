@@ -62,9 +62,9 @@ class ScalableChatSocket
         logger.info '%s disconnected', socket.username or 'an unsigned in user'
         io.emit 'user leave'
 
-      socket.on 'user signed in', autoSpread (username, token)->
+      socket.on 'user signed in', autoSpread (username, token, privateKey)->
         logger.trace 'user [%s] signed in on ip: %s', username, ip
-        chatService.newSocket socket, username, token, logError
+        chatService.newSocket socket, username, token, privateKey, logError
 
       socket.on 'conversation started', (other) ->
         participants = [socket.username, other]
@@ -140,12 +140,12 @@ class ScalableChatSocket
             logger.warn "Error while attempt to send direct message", ex
             socket.emit "!ERR: message not send", message, ex
 
-      socket.on 'incoming message received', autoSpread (conversationId, messageId) ->
-        logger.info 'marking message %s in conversation %s as delivered', messageId, conversationId
+      socket.on 'incoming message received', autoSpread (conversationId, message) ->
+        logger.info 'marking message %s in conversation %s as delivered', message, conversationId
 
-        chatService.markDelivered io, socket, conversationId, messageId, (err)->
+        chatService.markDelivered io, socket, conversationId, message, (err)->
           if err
-            logger.warn "Error while attempt to mark message %s as delivered", messageId?.bold, err
+            logger.warn "Error while attempt to mark message %s as delivered", message?.bold, err
 
       socket.on 'start typing', autoSpread (conversationId, username, participants, isTyping=true)->
         if isTyping

@@ -79,7 +79,10 @@ before fibrous ->
   Conversation.sync.remove()
 
   ## helper
-  makeMessage = (sender, body, client_fingerprint, sent_timestamp = Date.now(), delivered = false)->
+  makeMessage = (sender,receiver, body, client_fingerprint, sent_timestamp = Date.now(), delivered = false)->
+    publicKey = params.Customer.sync.findById(receiver).PublicKey
+    body = (new rsa publicKey).encrypt body, 'base64'
+
     msg = {sender, body, sent_timestamp, client_fingerprint}
     if delivered
       msg.delivered = true
@@ -92,9 +95,9 @@ before fibrous ->
   conv0_1 = new Conversation {
     participants: [user0, user1]
     history: [
-      makeMessage user0, "hello from u0", "fp:user1:0001", yesterday, yesterday + HOUR
-      makeMessage user1, "hi there, i'm u1", "fp:user2:0001", yesterday + 2 * HOUR, yesterday + 2 * HOUR
-      makeMessage user0, "you will see this later", "fp:user1:0002", yesterday + 3 * HOUR
+      makeMessage user0, user1, "hello from u0", "fp:user1:0001", yesterday, yesterday + HOUR
+      makeMessage user1, user0, "hi there, i'm u1", "fp:user2:0001", yesterday + 2 * HOUR, yesterday + 2 * HOUR
+      makeMessage user0, user1, "you will see this later", "fp:user1:0002", yesterday + 3 * HOUR
     ]
     undelivered_count: 1
   }
@@ -106,6 +109,8 @@ before fibrous ->
 
 before fibrous ->
   server.start 'test', 3000
+
+
 
 describe "user sign in", -> require('./signin')(params)
 describe "direct message", -> require('./direct-message')(params)
