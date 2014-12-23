@@ -8,7 +8,7 @@ class EncryptManager
     @Customer = @ModelFactory.models.customer
     @_public_keys = {}
 
-  getPublicKey: fibrous (customerId)->
+  getPublicKey: (customerId)->
     return @_public_keys[customerId] if @_public_keys[customerId]
 
     customer = @Customer.sync.findById customerId
@@ -17,14 +17,19 @@ class EncryptManager
     return @_public_keys[customerId] = customer.PublicKey
 
   encryptByPublicKey: fibrous (customerId, text)->
-    keyStr = @sync.getPublicKey customerId
+    try
+      keyStr = @getPublicKey customerId
 
-    key = new rsa keyStr
-    key.encrypt text, 'base64'
+      key = new rsa keyStr, 'public'
+      key.encrypt text, 'base64'
+    catch ex
+      logger.error 'invalid public key', ex
+      return 'UNABLE TO ENCRYPT'
 
   descryptByPrivateKey: (privateKey, encrypted)->
-    key = new rsa privateKey
+    logger.debug 'privateKey', privateKey
     try
+      key = new rsa privateKey, 'private'
       key.decrypt encrypted, 'utf8'
     catch ex
       logger.error 'invalid private key', ex

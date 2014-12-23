@@ -10,4 +10,4 @@ cookie:
 session:
   secret: w@tever-s3ss!@n
 
-mongo: localhost/development
+mongo: mongodb://plume_dev:Welcome2010!@ds048877-a0.mongolab.com:48877,ds048877-a1.mongolab.com:48876/plume_dev

@@ -10,9 +10,7 @@ module.exports = (connection) ->
 
     client_fingerprint: String
 
-    body:
-      type: String
-      required: true
+    body: String
 
     content_type:
       type: String

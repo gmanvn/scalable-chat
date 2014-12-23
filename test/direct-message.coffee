@@ -87,7 +87,7 @@ module.exports = (params)->
 
     message =
       sender: String user2
-      body: 'are you there?'
+      body: 'are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? '
       client_fingerprint: 'fg:user2:0002'
 
     sender.on 'outgoing message sent', (_conversation, fingerprint)->
@@ -113,11 +113,11 @@ module.exports = (params)->
       incomingMessage.should.not.be.a.string
 
       incomingMessage.sender.should.equal String user2
-      incomingMessage.body.should.equal 'are you there?'
+      incomingMessage.body.should.equal 'are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? are you there? '
       incomingMessage.client_fingerprint.should.equal 'fg:user2:0002'
 
 
 
       ## reply
-      receiver.emit 'incoming message received', conversation, incomingMessage._id
+      receiver.emit 'incoming message received', conversation, incomingMessage
       done()

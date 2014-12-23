@@ -1,3 +1,4 @@
+require('newrelic')
 config = require 'config'
 Server = require './lib/server'
 

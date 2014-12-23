@@ -3,6 +3,7 @@ logger = require('log4js').getLogger('MODEL')
 
 class Model
   constructor: (connection) ->
+    logger.info 'connecting to ', connection
     @_connection = mongoose.connect connection
 
     ## model loading

@@ -10,12 +10,21 @@ logError = (err)-> logger.warn err if err
 ## after this timeout, message will be stored in mongo
 DELIVERY_TIMEOUT = 500
 
+delay = (ms, cb)-> setTimeout cb, ms
+
+sleep = (ms) -> delay.sync ms
+
 module.exports = class ChatService
 
-  constructor: (@ModelFactory) ->
+  constructor: (@server, @ModelFactory) ->
     @encryption = new Encryption @ModelFactory
+    queue = @queue = {}
 
-  newSocket: fibrous (socket, username, token, privateKey)->
+    server.on 'outgoing message delivered', (message)->
+      logger.debug 'message', message._id
+      delete queue[message._id]
+
+  newSocket: fibrous (io, socket, username, token, privateKey)->
     return socket.disconnect() unless 'string' is typeof username
     return socket.disconnect() unless token?.length
 
@@ -107,6 +116,7 @@ module.exports = class ChatService
 
     roomName ="user-#{ to }"
     room = io.sockets.adapter.rooms[roomName]
+    logger.debug 'room', room
     isOtherOnline = room? and !!Object.keys(room).length
 
     encrypt = (text) =>
@@ -129,16 +139,19 @@ module.exports = class ChatService
       storeAndResend.sync()
       return
 
+
+    ## add message to queue
+    @queue[message._id] = message
+
     ## we will signal immediately to the destination about this message
     io.to("user-#{ to }").emit('incoming message', conversation._id, message)
 
     ## wait for a little then store to db and resend
     ## (resend to make sure receiver can get it without signing in again)
-    ## setTimeout storeAndResend.sync, DELIVERY_TIMEOUT
+    sleep DELIVERY_TIMEOUT
 
-
-
-    return {conversation, message}
+    return unless @queue[message._id]
+    storeAndResend.sync()
 
   markDelivered: fibrous (io, socket, conversationId, message) ->
     Conversation = @ModelFactory.models.conversation
@@ -148,6 +161,7 @@ module.exports = class ChatService
 
     conv.markDelivered message._id, ->
 
+    @server.emit 'outgoing message delivered', {_id: message._id}
     io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
 
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->

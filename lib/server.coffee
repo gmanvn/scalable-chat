@@ -6,6 +6,8 @@ session = require 'express-session'
 RedisStore = require('connect-redis')(session)
 
 redis = require 'redis'
+NRP = require('node-redis-pubsub')
+
 
 logger = log4js.getLogger('server')
 colors = require 'colors'
@@ -15,6 +17,8 @@ ScalableChatSocket = require './sockets'
 class ScalableChatServer
 
   constructor: (config)->
+    ## TODO: need to get env from runtime
+    env = config.env or process.env.NODE_ENV
     @app = express()
 
     ## setup
@@ -25,9 +29,23 @@ class ScalableChatServer
     Model = require('./models/index')
     @models = new Model config.mongo
 
+
+    @nrp = new NRP {
+      port: config.redis.port
+      host: config.redis.host
+      auth: config.redis.auth
+      scope: "scalable-chat.s2s.#{ env }"
+    }
+
+
     ## init Socket Server
     @ws = new ScalableChatSocket this
 
+  on: ->
+    @nrp.on arguments...
+
+  emit: ->
+    @nrp.emit arguments...
 
 
   start: (env, port)->
@@ -36,6 +54,7 @@ class ScalableChatServer
     logger.info 'ScalableChatServer start listening!\nconfiguration:\n  port: %s\n  env:  %s', String(port).bold.cyan, env.bold.cyan
 
     @ws.start(@redisPubClient, @redisSubClient, "scalable-chat.#{ env }")
+
 
   setupMiddleware: (config)->
     ## static

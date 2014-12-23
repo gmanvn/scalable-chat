@@ -8,3 +8,5 @@ app/partials/*.html
 config/*
 !config/default.yaml
 !config/test.yaml
+newrelic.js
+newrelic_agent.log

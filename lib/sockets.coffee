@@ -8,12 +8,10 @@ logger = log4js.getLogger('socket');
 ChatService = require './controllers/chat'
 
 ## helpers
-autoSpread = (fn, context=this)->
-
+autoSpread = (fn, context = this)->
   return (first)->
     args = arguments
     args = first if args.length is 1 and Array.isArray first
-
 
 
     fn.apply context, args
@@ -28,7 +26,7 @@ class ScalableChatSocket
     @ModelFactory = scalableChatServer.models
 
     ## init service
-    @chatService = new ChatService @ModelFactory
+    @chatService = new ChatService scalableChatServer, @ModelFactory
 
 
 
@@ -64,7 +62,14 @@ class ScalableChatSocket
 
       socket.on 'user signed in', autoSpread (username, token, privateKey)->
         logger.trace 'user [%s] signed in on ip: %s', username, ip
-        chatService.newSocket socket, username, token, privateKey, logError
+
+        ## this code is to add \n to private key
+        #        chunks = privateKey.match /(.{1,64})/g
+        #        privateKey = chunks.join '\n'
+        #        logger.debug 'private key', privateKey
+
+        split('\n').join('\\n').split('\r').join('\\r')
+        chatService.newSocket io, socket, username, token, privateKey, logError
 
       socket.on 'conversation started', (other) ->
         participants = [socket.username, other]
@@ -103,7 +108,6 @@ class ScalableChatSocket
 
 
       socket.on 'outgoing message', autoSpread (message, destination)->
-
         unless message.sender
           logger.warn "direct message without sender"
           socket.emit "!ERR: message not sent", message, {
@@ -147,7 +151,7 @@ class ScalableChatSocket
           if err
             logger.warn "Error while attempt to mark message %s as delivered", message?.bold, err
 
-      socket.on 'start typing', autoSpread (conversationId, username, participants, isTyping=true)->
+      socket.on 'start typing', autoSpread (conversationId, username, participants, isTyping = true)->
         if isTyping
           logger.info '%s is typing in conversation %s', username, conversationId
         else
