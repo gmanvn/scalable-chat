@@ -68,7 +68,7 @@ class ScalableChatSocket
         #        privateKey = chunks.join '\n'
         #        logger.debug 'private key', privateKey
 
-        split('\n').join('\\n').split('\r').join('\\r')
+        #split('\n').join('\\n').split('\r').join('\\r')
         chatService.newSocket io, socket, username, token, privateKey, logError
 
       socket.on 'conversation started', (other) ->
