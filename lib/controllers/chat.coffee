@@ -17,7 +17,7 @@ sleep = (ms) -> delay.sync ms
 module.exports = class ChatService
 
   constructor: (@server, @ModelFactory) ->
-    @encryption = new Encryption @ModelFactory
+    @encryption = new Encryption server, @ModelFactory
     queue = @queue = {}
 
     server.on 'outgoing message delivered', (message)->
@@ -47,6 +47,8 @@ module.exports = class ChatService
     socket.username = username
     socket.join "user-#{ username }"
     socket.privateKey = privateKey
+
+    @server.emit 'user signed in', {username}
 
     #TODO: test private/public matching
 

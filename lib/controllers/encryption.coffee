@@ -4,9 +4,12 @@ logger = require('log4js').getLogger('encryption')
 
 class EncryptManager
 
-  constructor: (@ModelFactory)->
+  constructor: (server, @ModelFactory)->
     @Customer = @ModelFactory.models.customer
     @_public_keys = {}
+
+    server.on 'user signed in', ({username}) =>
+      delete @_public_keys[username]
 
   getPublicKey: (customerId)->
     return @_public_keys[customerId] if @_public_keys[customerId]
