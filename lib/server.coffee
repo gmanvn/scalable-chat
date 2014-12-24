@@ -39,7 +39,7 @@ class ScalableChatServer
 
 
     ## init Socket Server
-    @ws = new ScalableChatSocket this
+    @ws = new ScalableChatSocket this, config
 
   on: ->
     @nrp.on arguments...

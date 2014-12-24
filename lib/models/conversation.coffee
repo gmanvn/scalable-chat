@@ -69,6 +69,14 @@ module.exports = (connection) ->
       $push:
         history: message
 
+
+    sender = message.sender
+    Customer = connection.model 'customer'
+    for receiver in @participants when receiver isnt sender
+      logger.debug 'increase unread number for %s', receiver.bold
+      Customer.sync.findByIdAndUpdate receiver, $inc: Badge: 1
+
+
   schema.methods.markDelivered = fibrous (messageId)->
     Conversation.sync.findOneAndUpdate {
       _id: @_id

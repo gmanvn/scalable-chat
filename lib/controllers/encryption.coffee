@@ -30,7 +30,6 @@ class EncryptManager
       return 'UNABLE TO ENCRYPT'
 
   descryptByPrivateKey: (privateKey, encrypted)->
-    logger.debug 'privateKey', privateKey
     try
       key = new rsa privateKey, 'private'
       key.decrypt encrypted, 'utf8'

@@ -3,6 +3,7 @@ should = require 'should'
 logger = require('log4js').getLogger('CHAT')
 _ = require 'lodash'
 Encryption = require './encryption'
+Notification = require './notification'
 
 logError = (err)-> logger.warn err if err
 
@@ -16,15 +17,18 @@ sleep = (ms) -> delay.sync ms
 
 module.exports = class ChatService
 
-  constructor: (@server, @ModelFactory) ->
+  constructor: (@server, @ModelFactory, config) ->
     @encryption = new Encryption server, @ModelFactory
+    @notification = new Notification config, @ModelFactory
     queue = @queue = {}
 
     server.on 'outgoing message delivered', (message)->
       logger.debug 'message', message._id
       delete queue[message._id]
 
-  newSocket: fibrous (io, socket, username, token, privateKey)->
+
+
+  newSocket: fibrous (io, socket, username, token, privateKey, deviceId)->
     return socket.disconnect() unless 'string' is typeof username
     return socket.disconnect() unless token?.length
 
@@ -34,7 +38,7 @@ module.exports = class ChatService
     }
 
     unless auth
-      logger.warn 'invalid user/token: %s %s',username.bold.cyan, token.bold.cyan
+      logger.warn 'invalid user/token: %s %s', username.bold.cyan, token.bold.cyan
       return socket.disconnect()
 
     ## preload public key of this user for encryption
@@ -53,6 +57,26 @@ module.exports = class ChatService
     #TODO: test private/public matching
 
     @pushNotification socket, username, privateKey, logError
+
+    ## device id
+    return unless deviceId
+    @ModelFactory.models
+    .customer.sync
+    .update {
+      LastDeviceId: deviceId
+    }, {
+      LastDeviceId: null
+    }, {
+      multi: true
+    }
+
+    ## update latest device id and reset unread number to 0
+    @ModelFactory.models
+    .customer.sync
+    .findByIdAndUpdate username, {
+      LastDeviceId:deviceId
+      Badge: 0
+    }
 
   isSignedIn: (socket)->
     'string' is typeof socket.username
@@ -82,8 +106,8 @@ module.exports = class ChatService
       socket.emit 'undelivered message', conv._id, undeliveredMessages
 
 
-  directMessage: fibrous (io, socket, from, to, message)->
-    unless from and to
+  directMessage: fibrous (io, socket, sender, receiver, message)->
+    unless sender and receiver
       throw new Error 'Lacking from or to'
 
     Conversation = @ModelFactory.models.conversation
@@ -91,7 +115,7 @@ module.exports = class ChatService
     ## find the conversation between these 2
     conversation = Conversation.sync.findOne {
       participants:
-        $all: [from, to]
+        $all: [sender, receiver]
     }
 
     ## check if conversation is read-only
@@ -105,33 +129,40 @@ module.exports = class ChatService
     ## create a new one and save if no conversation found (they haven't chatted)
     unless conversation
       conversation = new Conversation {
-        participants: [from, to]
+        participants: [sender, receiver]
       }
 
       conversation.sync.save()
 
     ## now, participants are allow to send message to each other
-    message.sender = from
+    message.sender = sender
     message._id = @ModelFactory.objectId()
 
     socket.emit "outgoing message sent", conversation._id, message.client_fingerprint
 
-    roomName ="user-#{ to }"
+    roomName = "user-#{ receiver }"
     room = io.sockets.adapter.rooms[roomName]
-    logger.debug 'room', room
     isOtherOnline = room? and !!Object.keys(room).length
 
     encrypt = (text) =>
-      @encryption.sync.encryptByPublicKey to, text
+      @encryption.sync.encryptByPublicKey receiver, text
+
+    push = =>
+      @notification.queue receiver
 
     storeAndResend = fibrous ->
       try
-        logger.debug 'encrypting message'
         enc = _.clone message
+        logger.debug 'encrypting message'
         enc.body = encrypt message.body
+        logger.debug 'done encryption'
 
-        logger.debug 'about to store msg', enc
+        logger.debug 'about to store msg', enc._id
         conversation.sync.pushMessage enc
+
+        ## queue the push
+        push()
+
         io.to(roomName).emit('incoming message', conversation._id, message)
       catch err
         logger.error "Cannot save message %s in conversation %s", message._id, conversation._id, err
@@ -146,7 +177,7 @@ module.exports = class ChatService
     @queue[message._id] = message
 
     ## we will signal immediately to the destination about this message
-    io.to("user-#{ to }").emit('incoming message', conversation._id, message)
+    io.to("user-#{ receiver }").emit('incoming message', conversation._id, message)
 
     ## wait for a little then store to db and resend
     ## (resend to make sure receiver can get it without signing in again)
@@ -167,6 +198,5 @@ module.exports = class ChatService
     io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
 
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->
-
     participants.forEach (other)->
       io.to("user-#{ other }").emit('other is typing', conversationId, username, isTyping)

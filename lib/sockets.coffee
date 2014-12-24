@@ -21,12 +21,12 @@ logError = (err)-> logger.warn err if err
 
 class ScalableChatSocket
 
-  constructor: (@scalableChatServer) ->
+  constructor: (@scalableChatServer, config) ->
     @app = scalableChatServer.app
     @ModelFactory = scalableChatServer.models
 
     ## init service
-    @chatService = new ChatService scalableChatServer, @ModelFactory
+    @chatService = new ChatService scalableChatServer, @ModelFactory, config
 
 
 
@@ -60,7 +60,7 @@ class ScalableChatSocket
         logger.info '%s disconnected', socket.username or 'an unsigned in user'
         io.emit 'user leave'
 
-      socket.on 'user signed in', autoSpread (username, token, privateKey)->
+      socket.on 'user signed in', autoSpread (username, token, privateKey, deviceId)->
         logger.trace 'user [%s] signed in on ip: %s', username, ip
 
         ## this code is to add \n to private key
@@ -68,7 +68,7 @@ class ScalableChatSocket
         #        privateKey = chunks.join '\n'
         #        logger.debug 'private key', privateKey
 
-        chatService.newSocket io, socket, username, token, privateKey, logError
+        chatService.newSocket io, socket, username, token, privateKey, deviceId, logError
 
       socket.on 'conversation started', (other) ->
         participants = [socket.username, other]
