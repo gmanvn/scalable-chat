@@ -25,7 +25,7 @@ class NotificationManager
 
       message = new apn.Notification
       message.expiry = ~~((24 * HOUR + Date.now()) / 1000)
-      message.alert = 'You have unread messages'
+      message.alert = 'You have a new message.'
       message.badge = badge
 
       device = new apn.Device token
