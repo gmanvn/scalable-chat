@@ -1,4 +1,12 @@
+cluster = require 'cluster'
+_ = require 'lodash'
 io = require('socket.io-client')
+
+PROCESS_USER = 100
+MAX_FRIENDS = 20
+NUMBER_PROCESS = 2
+TOTAL_USER = PROCESS_USER * NUMBER_PROCESS
+
 
 keys = [
   {
@@ -6,47 +14,74 @@ keys = [
     public: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAix4jatNPZZW5NYM+nIT0\noPaRoJGP8DA9J8ZmD5SA0eZAC9+WP+m/0SJz74qkw6xnwrP/i+9GK0JQiAu2XAL2\n4vtTpkvuL+8bXk5DGqsL38evjax+Rwqa5j2oHSnIas3jsb3OxERt9BrOYGYTYp7D\nVaOt5fhmGy90/+pYUREGRbl3ZVPDUtaOVSvhjX1rDt5mbZgbxnEQcKI0GmWp0suX\nz/0Ms0XZG5q4XITLsYhBqbRCXbIBl9DT6wrEbJhxlXXfah7Y/HrP350De1qSuDyI\n2b+Yno+Ykqfo+WaEls//S4EsUBA/8MGC6WmPnUMd/bn785hVxGOzmdFst3N5kf/p\npwIDAQAB\n-----END PUBLIC KEY-----'
   }
 ]
-usersCount = 500
-server = 'http://localhost'
-options =
-  transports: ['websocket'],
-  'force new connection': true
 
 
-connect = ->
-  port = 3001 + ~~(Math.random() * 4)
-  io.connect [server, port].join(':'), options
+everyone = [1..TOTAL_USER]
 
-## connect
-devices = [1..usersCount].map (customerId) ->
-  socket = connect()
-  return {
-  socket
-  customerId: String customerId
-  privateKey: keys[0].private
-  token: 'token'
-  counter: 0
-  timers: {}
-  }
+if cluster.isMaster
 
-## signin
+  for i in [1..NUMBER_PROCESS]
+    everyone = _.shuffle(everyone)
+    env =
+      start: (i - 1) * PROCESS_USER + 1
+      end: i * PROCESS_USER
 
-stat =
-  count: 0
-  totalTime: 0
-  average: 0
-  max: 0
-  min: Infinity
+    cluster.fork env
 
-round2 = (number)->
-  ~~(number * 100) / 100
+if cluster.isWorker
+  {start, end} = process.env
+  console.log 'env', {start, end}
+
+  server = 'http://localhost'
+  options =
+    transports: ['websocket'],
+    'force new connection': true
 
 
-devices.forEach (device, index) ->
-  setTimeout ->
-    loginTime = Date.now()
+  connect = ->
+    port = 3001 + ~~(Math.random() * 4)
+    io.connect [server, port].join(':'), options
 
+
+  stat =
+    count: 0
+    totalTime: 0
+    average: 0
+    max: 0
+    min: Infinity
+
+  round2 = (number)->
+    ~~(number * 100) / 100
+
+  incoming = 0
+
+  ## init
+  devices = [start..end].map (customerId) ->
+    socket = connect()
+    return {
+    socket
+    customerId: String customerId
+    privateKey: keys[0].private
+    token: 'token'
+    counter: 0
+    timers: {}
+    friends: _.shuffle(everyone)[0..MAX_FRIENDS]
+    }
+
+  ## add listener
+  devices.forEach (device)->
+
+    ## incoming message
+    device.socket.on 'incoming message', (conversationId, messages) ->
+      messages = [messages] unless messages.length
+      incoming += messages.length
+      for message in messages
+        device.socket.emit 'incoming message received', conversationId, message
+
+    ## delivered
     device.socket.on 'outgoing message delivered', (conversationId, fingerprint)->
+#      send device
+
       sent = device.timers[fingerprint]
       return unless sent
       time = Date.now() - sent
@@ -59,61 +94,32 @@ devices.forEach (device, index) ->
       stat.max = if time > stat.max then time else stat.max
       stat.min = if time < stat.min then time else stat.min
 
-      console.log 'time: %sms  \tavg: %sms \tmax: %sms \tmin: %sms \t index: %s', time, stat.average, stat.max, stat.min, stat.count
+      console.log 'time: %sms  \tavg: %sms \tmax: %sms \tmin: %sms \t received: %s \t sent: %s \t incoming: %s', time, stat.average, stat.max, stat.min, stat.count, sent_count, incoming
 
 
-    device.socket.on 'incoming message', (conversationId, messages) ->
-      messages = [messages] unless messages.length
-      for message in messages
-        device.socket.emit 'incoming message received', conversationId, message
 
-
-#    device.socket.on 'incoming message', (conversationId, messages) ->
-#      isArray = !!messages.length
-#      if isArray
-##        length = messages.length
-##        timeBlock = Date.now() - loginTime
-##        time = round2 timeBlock / length
-##        stat.count += length
-##        stat.totalTime += time
-##        stat.average = round2 stat.totalTime / stat.count
-##        stat.max = if time > stat.max then time else stat.max
-##        stat.min = if time < stat.min then time else stat.min
-#
-#        for message in messages
-#          device.socket.emit 'incoming message received', conversationId, message
-#
-#      else
-#
-#
-#        device.socket.emit 'incoming message received', conversationId, messages
-#
-##      console.log 'time: %sms  \tavg: %sms \tmax: %sms \tmin: %sms \t index: %s', time, stat.average, stat.max, stat.min, stat.count
-
-    device.socket.emit 'user signed in', device.customerId, device.token, device.privateKey
-  , 0
-
-
-## send message
-setTimeout ->
-  console.log 'start sending'
-  BLOCK_SIZE = 20
+  ## signin
   devices.forEach (device)->
-    block =  ~~(Math.random() * usersCount / BLOCK_SIZE)
-    start = block * BLOCK_SIZE
+    device.socket.emit 'user signed in', device.customerId, device.token, device.privateKey
+
+  sent_count = 0
+
+  send = (device)->
+    sender = device.customerId
+    receiver = String _.sample device.friends
+    body = 'load test'
+    fgp = [sender, device.counter++].join ':'
+    device.timers[fgp] = Date.now()
+
+#    console.log '%s -> %s', sender, receiver
+    device.socket.emit 'outgoing message', {
+      sender, body, client_fingerprint: fgp
+    }, receiver
+    sent_count++
+
+  devices.forEach (device)->
     setInterval ->
-      receiver = String(start + ~~(1 + Math.random() * BLOCK_SIZE))
-      length = ~~(Math.random() * 200) + 2
-      array = new Array length
-      fgp = [device.customerId, device.counter++].join ':'
-      device.timers[fgp] = Date.now()
-      #    console.log 'sending message... %s -> %s', device.customerId, receiver
-
-      device.socket.emit "outgoing message", {
-        sender: device.customerId
-        body: array.join 'a'
-        client_fingerprint: fgp
-      }, receiver
-
+      send device
     , 1000
-, 10000
+
+

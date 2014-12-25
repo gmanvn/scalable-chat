@@ -148,7 +148,7 @@ class ScalableChatSocket
 
         chatService.markDelivered io, socket, conversationId, message, (err)->
           if err
-            logger.warn "Error while attempt to mark message %s as delivered", message?.bold, err
+            logger.warn "Error while attempt to mark message %s as delivered", message?._id?.bold, err
 
       socket.on 'start typing', autoSpread (conversationId, username, participants, isTyping = true)->
         if isTyping

@@ -1,5 +1,6 @@
 fibrous = require 'fibrous'
 rsa = require 'node-rsa'
+ursa = require 'ursa'
 logger = require('log4js').getLogger('encryption')
 
 class EncryptManager
@@ -17,22 +18,28 @@ class EncryptManager
     customer = @Customer.sync.findById customerId
     return unless customer
 
-    return @_public_keys[customerId] = customer.PublicKey
+    return @_public_keys[customerId] = ursa.createPublicKey customer.PublicKey
 
   encryptByPublicKey: fibrous (customerId, text)->
     try
-      keyStr = @getPublicKey customerId
+      key = @getPublicKey customerId
+      chunks = text.match /(.{1,16})/g
+      encryptedChunks = chunks.map (chunk)->
+        key.encrypt chunk, 'utf8', 'base64'
 
-      key = new rsa keyStr, 'public'
-      key.encrypt text, 'base64'
+      return encryptedChunks.join ','
     catch ex
       logger.error 'invalid public key', ex
       return 'UNABLE TO ENCRYPT'
 
   descryptByPrivateKey: (privateKey, encrypted)->
     try
-      key = new rsa privateKey, 'private'
-      key.decrypt encrypted, 'utf8'
+      throw new Error 'empty private key' unless privateKey
+      key = ursa.createPrivateKey privateKey
+      encryptedChunks = encrypted.split ','
+      chunks = encryptedChunks.map (chunk)->
+        key.decrypt chunk, 'base64', 'utf8'
+      return chunks.join ''
     catch ex
       logger.error 'invalid private key', ex
       return 'UNABLE TO DECRYPT'
