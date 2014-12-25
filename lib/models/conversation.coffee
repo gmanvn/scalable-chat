@@ -34,6 +34,7 @@ module.exports = (connection) ->
   }
 
   schema = connection.Schema {
+    _id: String
 
   ## user-id of participants
     participants: [String]

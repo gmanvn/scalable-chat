@@ -113,10 +113,10 @@ module.exports = class ChatService
     Conversation = @ModelFactory.models.conversation
 
     ## find the conversation between these 2
-    conversation = Conversation.sync.findOne {
-      participants:
-        $all: [sender, receiver]
-    }
+    participants = if sender > receiver then [receiver, sender] else [sender, receiver]
+    convId = participants.join '..'
+
+    conversation = Conversation.sync.findById convId
 
     ## check if conversation is read-only
     if conversation and conversation.readOnly
@@ -126,19 +126,19 @@ module.exports = class ChatService
       message: 'This conversation is read-only'
       }
 
-    ## create a new one and save if no conversation found (they haven't chatted)
-    unless conversation
-      conversation = new Conversation {
-        participants: [sender, receiver]
-      }
-
-      conversation.sync.save()
+#    ## create a new one and save if no conversation found (they haven't chatted)
+#    unless conversation
+#      conversation = new Conversation {
+#        participants: [sender, receiver]
+#      }
+#
+#      conversation.save()
 
     ## now, participants are allow to send message to each other
     message.sender = sender
     message._id = @ModelFactory.objectId()
 
-    socket.emit "outgoing message sent", conversation._id, message.client_fingerprint
+    socket.emit "outgoing message sent", convId, message.client_fingerprint
 
     roomName = "user-#{ receiver }"
     room = io.sockets.adapter.rooms[roomName]
@@ -157,13 +157,22 @@ module.exports = class ChatService
         enc.body = encrypt message.body
         logger.debug 'done encryption'
 
+        ## create a new one and save if no conversation found (they haven't chatted)
+        unless conversation
+          conversation = new Conversation {
+            _id: convId
+            participants: [sender, receiver]
+          }
+
+          conversation.sync.save()
+
         logger.debug 'about to store msg', enc._id
         conversation.sync.pushMessage enc
 
         ## queue the push
         push()
 
-        io.to(roomName).emit('incoming message', conversation._id, message)
+        io.to(roomName).emit('incoming message', convId, message)
       catch err
         logger.error "Cannot save message %s in conversation %s", message._id, conversation._id, err
 
@@ -177,7 +186,7 @@ module.exports = class ChatService
     @queue[message._id] = message
 
     ## we will signal immediately to the destination about this message
-    io.to("user-#{ receiver }").emit('incoming message', conversation._id, message)
+    io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
     ## wait for a little then store to db and resend
     ## (resend to make sure receiver can get it without signing in again)
@@ -187,14 +196,18 @@ module.exports = class ChatService
     storeAndResend.sync()
 
   markDelivered: fibrous (io, socket, conversationId, message) ->
+    ## try to remove message in queue if it's on a same server
+    ## broadcast removal request otherwise
+    unless delete @queue[message._id]
+      @server.emit 'outgoing message delivered', {_id: message._id}
+
     Conversation = @ModelFactory.models.conversation
     conv = Conversation.sync.findById conversationId
 
-    return unless conv
+    if conv
+      conv.markDelivered message._id, ->
 
-    conv.markDelivered message._id, ->
 
-    @server.emit 'outgoing message delivered', {_id: message._id}
     io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
 
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->

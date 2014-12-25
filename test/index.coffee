@@ -102,6 +102,7 @@ before fibrous ->
     undelivered_count: 1
   }
 
+  conv0_1._id = [user0, user1].join '..'
   conv0_1.sync.save()
 
   users[0]._conversations[user1] = conv0_1

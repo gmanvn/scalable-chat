@@ -58,9 +58,9 @@ module.exports = (params)->
       receiver.disconnect()
 
       fibrous.run ->
-        conv = Conversation.sync.findById(_conversation)
-        conv.undelivered_count.should.equal 0
-        conv.history.length.should.equal 0
+        conv = Conversation.sync.count _id:_conversation
+        conv.should.equal 0
+
         done()
 
 
