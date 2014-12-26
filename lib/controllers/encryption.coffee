@@ -23,6 +23,7 @@ class EncryptManager
   encryptByPublicKey: fibrous (customerId, text)->
     try
       key = @getPublicKey customerId
+      return unless key
       chunks = text.match /(.{1,16})/g
       encryptedChunks = chunks.map (chunk)->
         key.encrypt chunk, 'utf8', 'base64'

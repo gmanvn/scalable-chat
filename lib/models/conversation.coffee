@@ -1,6 +1,8 @@
 fibrous = require 'fibrous'
 logger = require('log4js').getLogger('M/conversation')
 
+logger.setLevel 'ERROR'
+
 module.exports = (connection) ->
   messageSchema = connection.Schema {
 

@@ -2,9 +2,9 @@ cluster = require 'cluster'
 _ = require 'lodash'
 io = require('socket.io-client')
 
-PROCESS_USER = 100
+PROCESS_USER = 2
 MAX_FRIENDS = 20
-NUMBER_PROCESS = 2
+NUMBER_PROCESS = 1
 TOTAL_USER = PROCESS_USER * NUMBER_PROCESS
 
 
@@ -33,6 +33,7 @@ if cluster.isWorker
   console.log 'env', {start, end}
 
   server = 'http://localhost'
+#  server = 'http://dchat-170377.apse1.nitrousbox.com'
   options =
     transports: ['websocket'],
     'force new connection': true
@@ -66,6 +67,7 @@ if cluster.isWorker
     counter: 0
     timers: {}
     friends: _.shuffle(everyone)[0..MAX_FRIENDS]
+    received: {}
     }
 
   ## add listener
@@ -74,13 +76,15 @@ if cluster.isWorker
     ## incoming message
     device.socket.on 'incoming message', (conversationId, messages) ->
       messages = [messages] unless messages.length
-      incoming += messages.length
       for message in messages
+        continue if device.received[message._id]
+        device.received[message._id] = Date.now()
+        incoming++
         device.socket.emit 'incoming message received', conversationId, message
 
     ## delivered
     device.socket.on 'outgoing message delivered', (conversationId, fingerprint)->
-#      send device
+      send device
 
       sent = device.timers[fingerprint]
       return unless sent
@@ -117,9 +121,16 @@ if cluster.isWorker
     }, receiver
     sent_count++
 
-  devices.forEach (device)->
-    setInterval ->
-      send device
-    , 1000
+
+
+
+  setTimeout ->
+    console.log 'start sending'
+    devices.forEach (device, index)->
+      delay = index % 4
+      setInterval ->
+        send device
+      , 200
+  , 10000
 
 

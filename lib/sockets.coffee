@@ -4,6 +4,8 @@ fibrous = require 'fibrous'
 #############
 log4js = require 'log4js'
 logger = log4js.getLogger('socket');
+
+logger.setLevel 'ERROR'
 #############
 ChatService = require './controllers/chat'
 

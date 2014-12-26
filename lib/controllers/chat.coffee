@@ -5,6 +5,8 @@ _ = require 'lodash'
 Encryption = require './encryption'
 Notification = require './notification'
 
+logger.setLevel 'ERROR'
+
 logError = (err)-> logger.warn err if err
 
 ## maximum time amount for receiver to mark messages as delivery
@@ -196,22 +198,24 @@ module.exports = class ChatService
 
     ## save to db
     return unless @queue[message._id]
-    storeAndResend ->
+    setTimeout ->
+      storeAndResend ->
+    , 1
 
-  markDelivered: fibrous (io, socket, conversationId, message) ->
+  markDelivered: (io, socket, conversationId, message, cb) ->
+    io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
+
     ## try to remove message in queue if it's on a same server
     ## broadcast removal request otherwise
     unless delete @queue[message._id]
       @server.emit 'outgoing message delivered', {_id: message._id}
 
     Conversation = @ModelFactory.models.conversation
-    conv = Conversation.sync.findById conversationId
+    Conversation.findById conversationId, (err, conv)->
+      logError(err)
 
-    if conv
-      conv.markDelivered message._id, ->
-
-
-    io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
+      if conv
+        conv.markDelivered message._id, cb
 
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->
     participants.forEach (other)->

@@ -10,7 +10,7 @@ cookie:
 session:
   secret: w@tever-s3ss!@n
 
-mongo: mongodb://plume_dev:Welcome2010!@ds048877-a0.mongolab.com:48877,ds048877-a1.mongolab.com:48876/plume_dev
+mongo: mongodb://plumedev:Welcome2010!@ds050077.mongolab.com:50077/plumedev
 
 apn:
   production: false
