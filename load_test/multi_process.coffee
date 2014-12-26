@@ -2,9 +2,9 @@ cluster = require 'cluster'
 _ = require 'lodash'
 io = require('socket.io-client')
 
-PROCESS_USER = 2
+PROCESS_USER = 50
 MAX_FRIENDS = 20
-NUMBER_PROCESS = 1
+NUMBER_PROCESS = 4
 TOTAL_USER = PROCESS_USER * NUMBER_PROCESS
 
 
@@ -130,7 +130,7 @@ if cluster.isWorker
       delay = index % 4
       setInterval ->
         send device
-      , 200
+      , 2000
   , 10000
 
 

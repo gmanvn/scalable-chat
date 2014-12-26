@@ -108,8 +108,6 @@ module.exports = (params)->
 
       incomingMessage = incomingMessages[0]
       ## should be object
-      console.log 'incomingMessage', incomingMessage
-
       incomingMessage.should.not.be.a.string
 
       incomingMessage.sender.should.equal String user2
