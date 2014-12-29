@@ -20,6 +20,7 @@ class EncryptManager
     return @_public_keys[customerId] = customer.PublicKey
 
   encryptByPublicKey: fibrous (customerId, text)->
+    return text
     try
       keyStr = @getPublicKey customerId
 
@@ -30,6 +31,7 @@ class EncryptManager
       return 'UNABLE TO ENCRYPT'
 
   descryptByPrivateKey: (privateKey, encrypted)->
+    return encrypted
     try
       key = new rsa privateKey, 'private'
       key.decrypt encrypted, 'utf8'
