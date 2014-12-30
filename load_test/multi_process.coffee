@@ -40,7 +40,7 @@ if cluster.isWorker
 
 
   connect = ->
-    port = 3001 + ~~(Math.random() * 4)
+    port = 3001 + ~~(Math.random() * 8)
     io.connect [server, port].join(':'), options
 
 
