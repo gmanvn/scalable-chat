@@ -85,11 +85,10 @@ module.exports = (connection) ->
       _id: @_id
       'history._id': connection.Types.ObjectId messageId
     }, {
-      'history.$.delivered': true
-      'history.$.delivery_timestamp': Date.now()
-      $inc:
-        undelivered_count: -1
-      $pull: history: _id: messageId
+      #'history.$.delivered': true
+      #'history.$.delivery_timestamp': Date.now()
+      $inc: undelivered_count: -1
+      $pull: history: $elemMatch: _id: messageId
     }
 
     this.history.pull messageId
