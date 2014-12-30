@@ -89,7 +89,10 @@ module.exports = (connection) ->
       'history.$.delivery_timestamp': Date.now()
       $inc:
         undelivered_count: -1
+      $pull: history: _id: messageId
     }
+
+    this.history.pull messageId
 
   schema.methods.undeliveredOf = (username) ->
     @history.filter (msg)->

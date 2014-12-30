@@ -129,6 +129,7 @@ module.exports = class ChatService
 
     ## now, participants are allow to send message to each other
     message.sender = sender
+    message.sent_timestamp = Date.now()
     message._id = @ModelFactory.objectId()
 
     socket.emit "outgoing message sent", convId, message.client_fingerprint
@@ -156,7 +157,7 @@ module.exports = class ChatService
           _id: convId
         }, {
           $setOnInsert:
-            _id: convId
+            #_id: convId
             participants: [sender, receiver]
         }, {
           new: true
