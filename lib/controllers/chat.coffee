@@ -5,11 +5,13 @@ _ = require 'lodash'
 Encryption = require './encryption'
 Notification = require './notification'
 
+logger.setLevel 'ERROR'
+
 logError = (err)-> logger.warn err if err
 
 ## maximum time amount for receiver to mark messages as delivery
 ## after this timeout, message will be stored in mongo
-DELIVERY_TIMEOUT = 500
+DELIVERY_TIMEOUT = 3000
 
 delay = (ms, cb)-> setTimeout cb, ms
 
@@ -74,7 +76,7 @@ module.exports = class ChatService
     @ModelFactory.models
     .customer.sync
     .findByIdAndUpdate username, {
-      LastDeviceId:deviceId
+      LastDeviceId: deviceId
       Badge: 0
     }
 
@@ -116,26 +118,18 @@ module.exports = class ChatService
     participants = if sender > receiver then [receiver, sender] else [sender, receiver]
     convId = participants.join '..'
 
-    conversation = Conversation.sync.findById convId
 
-    ## check if conversation is read-only
-    if conversation and conversation.readOnly
-      throw new {
-      code: 'READONLY'
-      name: 'MSG_NOT_SENT'
-      message: 'This conversation is read-only'
-      }
-
-#    ## create a new one and save if no conversation found (they haven't chatted)
-#    unless conversation
-#      conversation = new Conversation {
-#        participants: [sender, receiver]
-#      }
-#
-#      conversation.save()
+    #    ## check if conversation is read-only
+    #    if conversation and conversation.readOnly
+    #      throw new {
+    #      code: 'READONLY'
+    #      name: 'MSG_NOT_SENT'
+    #      message: 'This conversation is read-only'
+    #      }
 
     ## now, participants are allow to send message to each other
     message.sender = sender
+    message.sent_timestamp = Date.now()
     message._id = @ModelFactory.objectId()
 
     socket.emit "outgoing message sent", convId, message.client_fingerprint
@@ -152,33 +146,38 @@ module.exports = class ChatService
 
     storeAndResend = fibrous ->
       try
-        enc = _.clone message
+
         logger.debug 'encrypting message'
-        enc.body = encrypt message.body
+        message.body = encrypt message.body
         logger.debug 'done encryption'
 
+
         ## create a new one and save if no conversation found (they haven't chatted)
-        unless conversation
-          conversation = new Conversation {
-            _id: convId
+        conversation = Conversation.sync.findOneAndUpdate {
+          _id: convId
+        }, {
+          $setOnInsert:
+            #_id: convId
             participants: [sender, receiver]
-          }
+        }, {
+          new: true
+          upsert: true
+        }
 
-          conversation.sync.save()
 
-        logger.debug 'about to store msg', enc._id
-        conversation.sync.pushMessage enc
+        io.to(roomName).emit('incoming message', convId, message)
+        logger.debug 'about to store msg', message._id
+        conversation.sync.pushMessage message
 
         ## queue the push
         push()
 
-        io.to(roomName).emit('incoming message', convId, message)
       catch err
-        logger.error "Cannot save message %s in conversation %s", message._id, conversation._id, err
+        logger.error "Cannot save message %s in conversation %s", message._id, convId, err
 
 
     unless isOtherOnline
-      storeAndResend.sync()
+      storeAndResend ->
       return
 
 
@@ -188,27 +187,36 @@ module.exports = class ChatService
     ## we will signal immediately to the destination about this message
     io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
-    ## wait for a little then store to db and resend
-    ## (resend to make sure receiver can get it without signing in again)
+    ## 1st retry
     sleep DELIVERY_TIMEOUT
-
     return unless @queue[message._id]
-    storeAndResend.sync()
+    io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
-  markDelivered: fibrous (io, socket, conversationId, message) ->
+    ## 2nd retry
+    sleep DELIVERY_TIMEOUT
+    return unless @queue[message._id]
+    io.to("user-#{ receiver }").emit('incoming message', convId, message)
+
+    ## save to db
+    return unless @queue[message._id]
+    setTimeout ->
+      storeAndResend ->
+    , 1
+
+  markDelivered: (io, socket, conversationId, message, cb) ->
+    io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
+
     ## try to remove message in queue if it's on a same server
     ## broadcast removal request otherwise
     unless delete @queue[message._id]
       @server.emit 'outgoing message delivered', {_id: message._id}
 
     Conversation = @ModelFactory.models.conversation
-    conv = Conversation.sync.findById conversationId
+    Conversation.findById conversationId, (err, conv)->
+      logError(err)
 
-    if conv
-      conv.markDelivered message._id, ->
-
-
-    io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
+      if conv
+        conv.markDelivered message._id, cb
 
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->
     participants.forEach (other)->
