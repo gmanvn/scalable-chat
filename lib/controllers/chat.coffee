@@ -11,7 +11,7 @@ logError = (err)-> logger.warn err if err
 
 ## maximum time amount for receiver to mark messages as delivery
 ## after this timeout, message will be stored in mongo
-DELIVERY_TIMEOUT = 3000
+DELIVERY_TIMEOUT = 500
 
 delay = (ms, cb)-> setTimeout cb, ms
 
