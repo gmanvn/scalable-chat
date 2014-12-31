@@ -148,21 +148,21 @@ module.exports = class ChatService
       try
         delete @queue[message._id]
         ## create a new one and save if no conversation found (they haven't chatted)
-        conversation = Conversation.sync.findOneAndUpdate {
-          _id: convId
-        }, {
-          $setOnInsert:
-            #_id: convId
-            participants: [sender, receiver]
-        }, {
-          new: true
-          upsert: true
-        }
+#        conversation = Conversation.sync.findOneAndUpdate {
+#          _id: convId
+#        }, {
+#          $setOnInsert:
+#            #_id: convId
+#            participants: [sender, receiver]
+#        }, {
+#          new: true
+#          upsert: true
+#        }
 
 
         io.to(roomName).emit('incoming message', convId, message)
         logger.debug 'about to store msg', message._id
-        conversation.sync.pushMessage message
+#        conversation.sync.pushMessage message
 
         ## queue the push
         push()
