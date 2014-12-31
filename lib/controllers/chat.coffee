@@ -11,7 +11,7 @@ logError = (err)-> logger.warn err if err
 
 ## maximum time amount for receiver to mark messages as delivery
 ## after this timeout, message will be stored in mongo
-DELIVERY_TIMEOUT = 500
+DELIVERY_TIMEOUT = 3000
 
 delay = (ms, cb)-> setTimeout cb, ms
 
@@ -182,6 +182,8 @@ module.exports = class ChatService
     ## we will signal immediately to the destination about this message
     io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
+    sleep DELIVERY_TIMEOUT
+
     mongoMessage = new Conversation {
       sender: sender
       receiver: receiver
@@ -190,7 +192,10 @@ module.exports = class ChatService
       sent_timestamp: new Date
     }
 
-    mongoMessage.save()
+    mongoMessage.save (err)->
+      logger.warn 'cannot save message', err if err
+      io.to("user-#{ receiver }").emit('incoming message', convId, message)
+
 
 #    ## 1st retry
 #    sleep DELIVERY_TIMEOUT
