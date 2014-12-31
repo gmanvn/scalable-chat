@@ -177,10 +177,21 @@ module.exports = class ChatService
 
 
     ## add message to queue
-#    @queue[message._id] = message
+    @queue[message._id] = message
 
     ## we will signal immediately to the destination about this message
     io.to("user-#{ receiver }").emit('incoming message', convId, message)
+
+    sleep DELIVERY_TIMEOUT
+    mongoMessage = new Conversation {
+      sender: sender
+      receiver: receiver
+      body: message.body
+      client_fingerprint: message.client_fingerprint
+      sent_timestamp: new Date
+    }
+
+    mongoMessage.save()
 
 #    ## 1st retry
 #    sleep DELIVERY_TIMEOUT
