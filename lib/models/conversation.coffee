@@ -90,8 +90,6 @@ module.exports = (connection) ->
       $pull: history: _id: messageId
     }
 
-    this.history.pull messageId
-
   schema.methods.undeliveredOf = (username) ->
     @history.filter (msg)->
       msg.sender is username and not msg.delivered

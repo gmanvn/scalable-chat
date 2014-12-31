@@ -129,7 +129,7 @@ module.exports = class ChatService
 
     ## now, participants are allow to send message to each other
     message.sender = sender
-    message.sent_timestamp = Date.now()
+    message.sent_timestamp = new Date
     message._id = @ModelFactory.objectId()
 
     socket.emit "outgoing message sent", convId, message.client_fingerprint
@@ -144,14 +144,9 @@ module.exports = class ChatService
     push = =>
       @notification.queue receiver
 
-    storeAndResend = fibrous ->
+    storeAndResend = fibrous =>
       try
-
-        logger.debug 'encrypting message'
-        message.body = encrypt message.body
-        logger.debug 'done encryption'
-
-
+        delete @queue[message._id]
         ## create a new one and save if no conversation found (they haven't chatted)
         conversation = Conversation.sync.findOneAndUpdate {
           _id: convId
