@@ -182,7 +182,6 @@ module.exports = class ChatService
     ## we will signal immediately to the destination about this message
     io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
-    sleep DELIVERY_TIMEOUT
     mongoMessage = new Conversation {
       sender: sender
       receiver: receiver
