@@ -177,26 +177,26 @@ module.exports = class ChatService
 
 
     ## add message to queue
-    @queue[message._id] = message
+#    @queue[message._id] = message
 
     ## we will signal immediately to the destination about this message
     io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
-    ## 1st retry
-    sleep DELIVERY_TIMEOUT
-    return unless @queue[message._id]
-    io.to("user-#{ receiver }").emit('incoming message', convId, message)
-
-    ## 2nd retry
-    sleep DELIVERY_TIMEOUT
-    return unless @queue[message._id]
-    io.to("user-#{ receiver }").emit('incoming message', convId, message)
-
-    ## save to db
-    return unless @queue[message._id]
-    setTimeout ->
-      storeAndResend ->
-    , 1
+#    ## 1st retry
+#    sleep DELIVERY_TIMEOUT
+#    return unless @queue[message._id]
+#    io.to("user-#{ receiver }").emit('incoming message', convId, message)
+#
+#    ## 2nd retry
+#    sleep DELIVERY_TIMEOUT
+#    return unless @queue[message._id]
+#    io.to("user-#{ receiver }").emit('incoming message', convId, message)
+#
+#    ## save to db
+#    return unless @queue[message._id]
+#    setTimeout ->
+#      storeAndResend ->
+#    , 1
 
   markDelivered: (io, socket, conversationId, message, cb) ->
     io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
