@@ -181,7 +181,7 @@ module.exports = class ChatService
     ## we will signal immediately to the destination about this message
     io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
-    sleep DELIVERY_TIMEOUT
+#    sleep DELIVERY_TIMEOUT
 
     mongoMessage =  {
       sender: sender
@@ -232,7 +232,8 @@ module.exports = class ChatService
       @server.emit 'outgoing message delivered', {_id: message._id}
 
     @server.redisData.keys ['msg', message.id, '*'].join(':'), (err, keys) =>
-      @server.redisData.del keys...
+      if keys[0]
+        @server.redisData.del keys..., ->
 
 
 #    Conversation = @ModelFactory.models.conversation
