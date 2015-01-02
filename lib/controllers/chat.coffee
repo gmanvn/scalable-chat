@@ -231,9 +231,9 @@ module.exports = class ChatService
     unless delete @queue[message._id]
       @server.emit 'outgoing message delivered', {_id: message._id}
 
-    @server.redisData.keys ['msg', message.id, '*'].join(':'), (err, keys) =>
-      if keys[0]
-        @server.redisData.del keys..., ->
+#    @server.redisData.keys ['msg', message.id, '*'].join(':'), (err, keys) =>
+#      if keys[0]
+#        @server.redisData.del keys..., ->
 
 
 #    Conversation = @ModelFactory.models.conversation
