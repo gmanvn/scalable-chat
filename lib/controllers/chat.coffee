@@ -170,9 +170,9 @@ module.exports = class ChatService
         logger.error "Cannot save message %s in conversation %s", message._id, convId, err
 
 
-    unless isOtherOnline
-      storeAndResend ->
-      return
+#    unless isOtherOnline
+#      storeAndResend ->
+#      return
 
 
     ## add message to queue
@@ -191,13 +191,20 @@ module.exports = class ChatService
       sent_timestamp: new Date
     }
 
-    @server.redisData.hmset [
+    key = [
       'msg'
       message._id
       sender
       receiver
-    ].join(':'), mongoMessage, (err)->
+    ].join(':')
+
+    @server.redisData.hmset key, mongoMessage, (err)->
       logger.warn 'cannot save message', err if err
+
+    @server.redisData.hmset key+'_1', mongoMessage, (err)->
+      logger.warn 'cannot save message', err if err
+
+
 
     #io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
