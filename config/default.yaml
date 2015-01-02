@@ -17,3 +17,8 @@ apn:
   key: './config/key.pem'
   cert: './config/cert.pem'
   passphrase: Welcome2010!
+
+redis_data:
+  port: 6379
+  host: plumechatload.redis.cache.windows.net
+  auht: xByyLOwqvzSr968LifvC6KJo0NSGfLVy+4qRoagPTbk=

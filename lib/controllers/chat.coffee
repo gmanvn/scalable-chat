@@ -30,6 +30,8 @@ module.exports = class ChatService
 
 
 
+
+
   newSocket: fibrous (io, socket, username, token, privateKey, deviceId)->
     return socket.disconnect() unless 'string' is typeof username
     return socket.disconnect() unless token?.length
@@ -184,7 +186,7 @@ module.exports = class ChatService
 
     sleep DELIVERY_TIMEOUT
 
-    mongoMessage = new Conversation {
+    mongoMessage =  {
       sender: sender
       receiver: receiver
       body: message.body
@@ -192,9 +194,19 @@ module.exports = class ChatService
       sent_timestamp: new Date
     }
 
-    mongoMessage.save (err)->
-      logger.warn 'cannot save message', err if err
-      io.to("user-#{ receiver }").emit('incoming message', convId, message)
+    @server.redisData.sync.hmset [
+      'msg'
+      message.id
+      sender
+      receiver
+    ].join(':'), mongoMessage
+
+    #io.to("user-#{ receiver }").emit('incoming message', convId, message)
+
+
+#    mongoMessage.save (err)->
+#      logger.warn 'cannot save message', err if err
+#      io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
 
 #    ## 1st retry
@@ -221,12 +233,16 @@ module.exports = class ChatService
     unless delete @queue[message._id]
       @server.emit 'outgoing message delivered', {_id: message._id}
 
-    Conversation = @ModelFactory.models.conversation
-    Conversation.findById conversationId, (err, conv)->
-      logError(err)
+    keys = @server.redisData.sync.keys ['msg', message.id, '*'].join(':')
+    @server.redisData.sync.delete keys...
 
-      if conv
-        conv.markDelivered message._id, cb
+
+#    Conversation = @ModelFactory.models.conversation
+#    Conversation.findById conversationId, (err, conv)->
+#      logError(err)
+#
+#      if conv
+#        conv.markDelivered message._id, cb
 
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->
     participants.forEach (other)->

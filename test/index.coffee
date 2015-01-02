@@ -103,7 +103,7 @@ before fibrous ->
   }
 
   conv0_1._id = [user0, user1].join '..'
-  conv0_1.sync.save()
+  #conv0_1.sync.save()
 
   users[0]._conversations[user1] = conv0_1
   users[1]._conversations[user0] = conv0_1
