@@ -235,6 +235,9 @@ module.exports = class ChatService
 #      if keys[0]
 #        @server.redisData.del keys..., ->
 
+    key = ['msg', message.id, message.sender, socket.username].join(':')
+    @server.redisData.del key, ->
+
 
 #    Conversation = @ModelFactory.models.conversation
 #    Conversation.findById conversationId, (err, conv)->
