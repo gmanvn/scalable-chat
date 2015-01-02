@@ -29,9 +29,6 @@ module.exports = class ChatService
       delete queue[message._id]
 
 
-
-
-
   newSocket: fibrous (io, socket, username, token, privateKey, deviceId)->
     return socket.disconnect() unless 'string' is typeof username
     return socket.disconnect() unless token?.length
@@ -194,12 +191,13 @@ module.exports = class ChatService
       sent_timestamp: new Date
     }
 
-    @server.redisData.sync.hmset [
+    @server.redisData.hmset [
       'msg'
       message.id
       sender
       receiver
-    ].join(':'), mongoMessage
+    ].join(':'), mongoMessage, (err)->
+      logger.warn 'cannot save message', err if err
 
     #io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
@@ -233,8 +231,8 @@ module.exports = class ChatService
     unless delete @queue[message._id]
       @server.emit 'outgoing message delivered', {_id: message._id}
 
-    keys = @server.redisData.sync.keys ['msg', message.id, '*'].join(':')
-    @server.redisData.sync.delete keys...
+    @server.redisData.keys ['msg', message.id, '*'].join(':'), (err, keys) =>
+      @server.redisData.del keys...
 
 
 #    Conversation = @ModelFactory.models.conversation
