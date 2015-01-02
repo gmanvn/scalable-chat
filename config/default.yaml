@@ -21,4 +21,4 @@ apn:
 redis_data:
   port: 6379
   host: plumechatload.redis.cache.windows.net
-  auht: xByyLOwqvzSr968LifvC6KJo0NSGfLVy+4qRoagPTbk=
+  auth: xByyLOwqvzSr968LifvC6KJo0NSGfLVy+4qRoagPTbk=
