@@ -39,15 +39,15 @@ module.exports = class ChatService
       AuthenticationKey: token
     }
 
-    unless auth
-      logger.warn 'invalid user/token: %s %s', username.bold.cyan, token.bold.cyan
-      return socket.disconnect()
+#    unless auth
+#      logger.warn 'invalid user/token: %s %s', username.bold.cyan, token.bold.cyan
+#      return socket.disconnect()
 
     ## preload public key of this user for encryption
-    socket.publicKey = @ModelFactory.models.customer.sync.findById(username)?.PublicKey
-
-    unless socket.publicKey
-      logger.warn '%s has no public key', username.bold.cyan
+#    socket.publicKey = @ModelFactory.models.customer.sync.findById(username)?.PublicKey
+#
+#    unless socket.publicKey
+#      logger.warn '%s has no public key', username.bold.cyan
 
     logger.debug '%s signed in with token=%s', username.bold.cyan, token.bold.cyan
     socket.username = username
@@ -148,21 +148,34 @@ module.exports = class ChatService
       try
         delete @queue[message._id]
         ## create a new one and save if no conversation found (they haven't chatted)
-        conversation = Conversation.sync.findOneAndUpdate {
-          _id: convId
-        }, {
-          $setOnInsert:
-            #_id: convId
-            participants: [sender, receiver]
-        }, {
-          new: true
-          upsert: true
+#        conversation = Conversation.sync.findOneAndUpdate {
+#          _id: convId
+#        }, {
+#          $setOnInsert:
+#            #_id: convId
+#            participants: [sender, receiver]
+#        }, {
+#          new: true
+#          upsert: true
+#        }
+
+    
+        mongoMessage = new Conversation {
+          sender: sender
+          receiver: receiver
+          body: message.body
+          client_fingerprint: message.client_fingerprint
+          sent_timestamp: new Date
         }
+    
+        mongoMessage.save (err)->
+          logger.warn 'cannot save message', err if err
+          io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
 
-        io.to(roomName).emit('incoming message', convId, message)
-        logger.debug 'about to store msg', message._id
-        conversation.sync.pushMessage message
+#        io.to(roomName).emit('incoming message', convId, message)
+#        logger.debug 'about to store msg', message._id
+#        conversation.sync.pushMessage message
 
         ## queue the push
         push()
@@ -178,6 +191,10 @@ module.exports = class ChatService
 
     ## add message to queue
     @queue[message._id] = message
+
+    storeAndResend ->
+
+    return
 
     ## we will signal immediately to the destination about this message
     io.to("user-#{ receiver }").emit('incoming message', convId, message)

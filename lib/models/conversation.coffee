@@ -1,6 +1,20 @@
 fibrous = require 'fibrous'
 logger = require('log4js').getLogger('M/conversation')
 
+module.exports = (connection)->
+  messageSchema = connection.Schema {
+    sender: String
+    receiver: String
+    body: String
+    client_fingerprint: String
+    sent_timestamp: String
+  }
+
+  connection.model 'message', messageSchema
+
+return
+
+
 module.exports = (connection) ->
   messageSchema = connection.Schema {
 
