@@ -193,7 +193,7 @@ module.exports = class ChatService
 
     @server.redisData.hmset [
       'msg'
-      message.id
+      message._id
       sender
       receiver
     ].join(':'), mongoMessage, (err)->
