@@ -18,7 +18,7 @@ class ScalableChatServer
 
   constructor: (config)->
     ## TODO: need to get env from runtime
-    env = config.env or process.env.NODE_ENV
+    env = @env = config.env or process.env.NODE_ENV
     @app = express()
 
     ## setup

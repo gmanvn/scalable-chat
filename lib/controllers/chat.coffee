@@ -39,9 +39,9 @@ module.exports = class ChatService
 
     for key,value of commands
       ((key, value) =>
-        @[key] = ->
-          logger.debug key, value, 'arguments', arguments
-          server.redisData[value] arguments...)(key, value)
+        @[key] = (redisKey, params...) ->
+          server.redisData[value] [server.env, redisKey].join('$'), params...
+      )(key, value)
 
   newSocket: fibrous (io, socket, username, token, privateKey, deviceId)->
     try

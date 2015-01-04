@@ -113,9 +113,9 @@ before fibrous ->
   del.sync "incoming:#{ user1 }"
   del.sync "undelivered:#{ user0 }"
 
-  hmset.sync 'messages', 'msg000001', JSON.stringify message
-  sadd.sync "incoming:#{ user1 }", 'msg000001'
-  sadd.sync "undelivered:#{ user0 }", "#{conversation_id}::fp:user1:0002"
+  hmset.sync 'test$messages', 'msg000001', JSON.stringify message
+  sadd.sync "test$incoming:#{ user1 }", 'msg000001'
+  sadd.sync "test$undelivered:#{ user0 }", "#{conversation_id}::fp:user1:0002"
 
 
   conv0_1 = {_id: conversation_id}
