@@ -28,6 +28,18 @@ module.exports = class ChatService
       logger.debug 'message', message._id
       delete queue[message._id]
 
+    commands =
+      saveObj: 'hmset'
+      addToSet: 'sadd'
+      retrieveObj: 'hgetall'
+      removeFromSet: 'srem'
+      del: 'del'
+      retrieveSet: 'smembers'
+      getMultipleHash: 'hmget'
+
+    for key,value of commands
+      @[key] = -> server.redisData[value] arguments...
+
 
   newSocket: fibrous (io, socket, username, token, privateKey, deviceId)->
     return socket.disconnect() unless 'string' is typeof username
@@ -83,152 +95,112 @@ module.exports = class ChatService
     'string' is typeof socket.username
 
   pushNotification: fibrous (socket, username)->
-    Conversation = @ModelFactory.models.conversation
+    futures = [
+      @retrieveSet.future "incoming:#{ username }"
+      @retrieveSet.future "undelivered:#{ username }"
+    ]
 
-    ## get all conversations that involves this user and has undelivered msg
-    unreadConversations = Conversation.sync.find({
-      participants: username
-#      undelivered_count: $gte: 1
-    })
+    [incoming, undelivered] = fibrous.wait futures
 
-    ## filter out those are only new for the other party and sent undelivered msg to this user
-    unreadConversations.forEach (conv) =>
-      newMessages = conv.newMessageFor username
-      undeliveredMessages = conv.undeliveredOf username
+    if incoming?.length
+      ## going to get all messages
+      array = @getMultipleHash 'messages', incoming
 
-      newMessages = newMessages.map (msg)=>
-        msg.body = @encryption.descryptByPrivateKey socket.privateKey, msg.body
-        return msg
+      ## we need to parse because messages are stored as JSON strings
+      array = array.map (json)->
+        m = JSON.parse json
 
-      undeliveredMessages = undeliveredMessages.map (msg)->
-        msg.client_fingerprint
+        ## JSON doesn't support datetime so we store it as timestamp
+        ## device expect datetime so we parse it here
+        m.sent_timestamp = new Date m.sent_timestamp
+        return m
 
-      socket.emit 'incoming message', conv._id, newMessages if newMessages.length
-      socket.emit 'undelivered message', conv._id, undeliveredMessages
+      ## now we have an array of all messages,
+      ## we need to group them by sender before sending back to client
+      conversations = _.groupBy array, (m)-> m.conversation
+      socket.emit 'incoming message', conv, messages for conv,messages in conversations
+
+    if undelivered?.length
+      ## undelivered is already an array of [conversation::fingerprint]
+      ## we need to split them and group the result by conversation
+
+      array = undelivered.map (value) -> value.split '::'
+      conversations = _.groupBy array, (pair)-> pair[0]
+
+      ## conversations is a hash of
+      ## key: conversation id
+      ## value: [conversation id, message fingerprint]
+      for conv,messages in conversations
+        socket.emit 'undelivered message', conv, messages.map (pair)-> pair[1]
+
+
 
 
   directMessage: fibrous (io, socket, sender, receiver, message)->
     unless sender and receiver
       throw new Error 'Lacking from or to'
 
-    Conversation = @ModelFactory.models.conversation
+    ## helper functions
+    push = =>
+      @notification.queue receiver
 
     ## find the conversation between these 2
     participants = if sender > receiver then [receiver, sender] else [sender, receiver]
     convId = participants.join '..'
 
-
-    #    ## check if conversation is read-only
-    #    if conversation and conversation.readOnly
-    #      throw new {
-    #      code: 'READONLY'
-    #      name: 'MSG_NOT_SENT'
-    #      message: 'This conversation is read-only'
-    #      }
-
-    ## now, participants are allow to send message to each other
+    ## add server-specific information
     message.sender = sender
     message.sent_timestamp = new Date
     message._id = @ModelFactory.objectId()
 
+    ## response to client
     socket.emit "outgoing message sent", convId, message.client_fingerprint
 
+    ## socket.io: find destination
     roomName = "user-#{ receiver }"
     room = io.sockets.adapter.rooms[roomName]
     isOtherOnline = room? and !!Object.keys(room).length
 
-    encrypt = (text) =>
-      @encryption.sync.encryptByPublicKey receiver, text
-
-    push = =>
-      @notification.queue receiver
-
-    storeAndResend = fibrous =>
-      try
-        delete @queue[message._id]
-        ## create a new one and save if no conversation found (they haven't chatted)
-#        conversation = Conversation.sync.findOneAndUpdate {
-#          _id: convId
-#        }, {
-#          $setOnInsert:
-#            #_id: convId
-#            participants: [sender, receiver]
-#        }, {
-#          new: true
-#          upsert: true
-#        }
-
-
-        io.to(roomName).emit('incoming message', convId, message)
-        logger.debug 'about to store msg', message._id
-#        conversation.sync.pushMessage message
-
-        ## queue the push
-        push()
-
-      catch err
-        logger.error "Cannot save message %s in conversation %s", message._id, convId, err
-
-
-#    unless isOtherOnline
-#      storeAndResend ->
-#      return
-
-
     ## add message to queue
-    @queue[message._id] = message
+    ## right now we don't need this
+    # @queue[message._id] = message
 
     ## we will signal immediately to the destination about this message
     io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
-#    sleep DELIVERY_TIMEOUT
 
-    mongoMessage =  {
+    ## we will store message in a hash
+    ## hash name: messages
+    ## key: message _id
+    ## value: message in JSON
+    ## why? it's much faster to retrieve multiple json value using hmget
+    ## why not mget? http://redis.io/topics/memory-optimization
+
+    messageToStore = {
+      _id: message._id
       sender: sender
       receiver: receiver
       body: message.body
       client_fingerprint: message.client_fingerprint
-      sent_timestamp: new Date
+      sent_timestamp: Date.now()
+      conversation: convId
     }
 
-    key = [
-      'msg'
-      message._id
-      sender
-      receiver
-    ].join(':')
+    data = {}
+    data[message._id] = JSON.stringify messageToStore
 
-    @server.redisData.hmset key, mongoMessage, (err)->
-      logger.warn 'cannot save message', err if err
+    ## parallel
+    futures = [
+      @saveObj.future "messages", data
+      @addToSet.future "incoming:#{ receiver }", message._id
+      @addToSet.future "undelivered:#{ sender }", [convId, message.client_fingerprint].join '::'
+    ]
 
-    @server.redisData.hmset key+'_1', mongoMessage, (err)->
-      logger.warn 'cannot save message', err if err
-
-
-
-    #io.to("user-#{ receiver }").emit('incoming message', convId, message)
+    fibrous.wait futures
+    logger.trace "saved"
 
 
-#    mongoMessage.save (err)->
-#      logger.warn 'cannot save message', err if err
-#      io.to("user-#{ receiver }").emit('incoming message', convId, message)
 
-
-#    ## 1st retry
-#    sleep DELIVERY_TIMEOUT
-#    return unless @queue[message._id]
-#    io.to("user-#{ receiver }").emit('incoming message', convId, message)
-#
-#    ## 2nd retry
-#    sleep DELIVERY_TIMEOUT
-#    return unless @queue[message._id]
-#    io.to("user-#{ receiver }").emit('incoming message', convId, message)
-#
-#    ## save to db
-#    return unless @queue[message._id]
-#    setTimeout ->
-#      storeAndResend ->
-#    , 1
 
   markDelivered: (io, socket, conversationId, message, cb) ->
     io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
@@ -238,20 +210,11 @@ module.exports = class ChatService
     unless delete @queue[message._id]
       @server.emit 'outgoing message delivered', {_id: message._id}
 
-#    @server.redisData.keys ['msg', message.id, '*'].join(':'), (err, keys) =>
-#      if keys[0]
-#        @server.redisData.del keys..., ->
-
-    key = ['msg', message._id, message.sender, socket.username].join(':')
-    @server.redisData.del key, ->
-
-
-#    Conversation = @ModelFactory.models.conversation
-#    Conversation.findById conversationId, (err, conv)->
-#      logError(err)
-#
-#      if conv
-#        conv.markDelivered message._id, cb
+    futures = [
+      @del.future "msg:#{ message._id}"
+      @removeFromSet.future "incoming:#{ socket.username }", message._id
+      @removeFromSet.future "undelivered:#{ message.sender }", [conversationId, message.client_fingerprint].join '::'
+    ]
 
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->
     participants.forEach (other)->

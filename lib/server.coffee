@@ -81,7 +81,7 @@ class ScalableChatServer
     @redisStoreClient = redis.createClient(config.redis.port, config.redis.host, opts)
 
     @redisData = redis.createClient(config.redis_data.port, config.redis_data.host, {
-      auth_pass: config.redis_data.auth
+      auth_pass: config.redis_data.auth or undefined
     })
 
 module.exports = ScalableChatServer
