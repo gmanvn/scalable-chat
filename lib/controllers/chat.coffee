@@ -36,6 +36,7 @@ module.exports = class ChatService
       del: 'del'
       retrieveSet: 'smembers'
       getMultipleHash: 'hmget'
+      removeFromHash: 'hdel'
 
     for key,value of commands
       ((key, value) =>
@@ -234,7 +235,7 @@ module.exports = class ChatService
       @server.emit 'outgoing message delivered', {_id: message._id}
 
     futures = [
-      @del.future "msg:#{ message._id}"
+      @removeFromHash.future "messages", message._id
       @removeFromSet.future "incoming:#{ socket.username }", message._id
       @removeFromSet.future "undelivered:#{ message.sender }", [conversationId, message.client_fingerprint].join '::'
     ]
