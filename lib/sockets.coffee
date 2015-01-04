@@ -144,7 +144,7 @@ class ScalableChatSocket
             socket.emit "!ERR: message not send", message, ex
 
       socket.on 'incoming message received', autoSpread (conversationId, message) ->
-        logger.info 'marking message %s in conversation %s as delivered', message, conversationId
+        logger.info 'marking message %s in conversation %s as delivered', message.body, conversationId
 
         chatService.markDelivered io, socket, conversationId, message, (err)->
           if err
