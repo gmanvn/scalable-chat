@@ -57,11 +57,7 @@ module.exports = (params)->
       sender.disconnect()
       receiver.disconnect()
 
-      fibrous.run ->
-        conv = Conversation.sync.count _id:_conversation
-        conv.should.equal 0
-
-        done()
+      done()
 
 
     ## wait 300ms for both client connected
@@ -108,7 +104,7 @@ module.exports = (params)->
 
       incomingMessage = incomingMessages[0]
       ## should be object
-      console.log 'incomingMessage', incomingMessage
+#      console.log 'incomingMessage', incomingMessage
 
       incomingMessage.should.not.be.a.string
 

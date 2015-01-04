@@ -80,8 +80,9 @@ before fibrous ->
 
   ## helper
   makeMessage = (sender,receiver, body, client_fingerprint, sent_timestamp = Date.now(), delivered = false)->
-    publicKey = params.Customer.sync.findById(receiver).PublicKey
-    body = (new rsa publicKey).encrypt body, 'base64'
+    ## do not encrypt for now
+    #publicKey = params.Customer.sync.findById(receiver).PublicKey
+    #body = (new rsa publicKey).encrypt body, 'base64'
 
     msg = {sender, body, sent_timestamp, client_fingerprint}
     if delivered
@@ -91,25 +92,39 @@ before fibrous ->
     return msg
 
 
+
   ## create new convesations
-  conv0_1 = new Conversation {
-    participants: [user0, user1]
-    history: [
-      makeMessage user0, user1, "hello from u0", "fp:user1:0001", yesterday, yesterday + HOUR
-      makeMessage user1, user0, "hi there, i'm u1", "fp:user2:0001", yesterday + 2 * HOUR, yesterday + 2 * HOUR
-      makeMessage user0, user1, "you will see this later", "fp:user1:0002", yesterday + 3 * HOUR
-    ]
-    undelivered_count: 1
-  }
+  conversation_id = [user0, user1].join '..'
+  message =
+    _id: 'msg000001'
+    sender: user0
+    receiver: user1
+    body: "you will see this later"
+    client_fingerprint: "fp:user1:0002"
+    sent_timestamp: yesterday + 3 * HOUR
+    conversation_id: conversation_id
 
-  conv0_1._id = [user0, user1].join '..'
-  #conv0_1.sync.save()
 
+  hmset = -> server.redisData.hmset arguments...
+  sadd = -> server.redisData.sadd arguments...
+  del = -> server.redisData.del arguments...
+
+  ## clean data
+  del.sync "incoming:#{ user1 }"
+  del.sync "undelivered:#{ user0 }"
+
+  hmset.sync 'messages', 'msg000001', JSON.stringify message
+  sadd.sync "incoming:#{ user1 }", 'msg000001'
+  sadd.sync "undelivered:#{ user0 }", "#{conversation_id}::fp:user1:0002"
+
+
+  conv0_1 = {_id: conversation_id}
   users[0]._conversations[user1] = conv0_1
   users[1]._conversations[user0] = conv0_1
 
 before fibrous ->
   server.start 'test', 3000
+
 
 
 

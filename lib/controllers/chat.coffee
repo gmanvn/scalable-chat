@@ -38,58 +38,64 @@ module.exports = class ChatService
       getMultipleHash: 'hmget'
 
     for key,value of commands
-      @[key] = -> server.redisData[value] arguments...
-
+      ((key, value) =>
+        @[key] = ->
+          logger.debug key, value, 'arguments', arguments
+          server.redisData[value] arguments...)(key, value)
 
   newSocket: fibrous (io, socket, username, token, privateKey, deviceId)->
-    return socket.disconnect() unless 'string' is typeof username
-    return socket.disconnect() unless token?.length
+    try
+      logger.debug 'username, token, privateKey[0..20], deviceId', username, token, privateKey[0..20], deviceId
+      return socket.disconnect() unless 'string' is typeof username
+      return socket.disconnect() unless token?.length
 
-    auth = @ModelFactory.models.authentication_token.sync.findOne {
-      CustomerId: username
-      AuthenticationKey: token
-    }
+      auth = @ModelFactory.models.authentication_token.sync.findOne {
+        CustomerId: username
+        AuthenticationKey: token
+      }
 
-    unless auth
-      logger.warn 'invalid user/token: %s %s', username.bold.cyan, token.bold.cyan
-      return socket.disconnect()
+      unless auth
+        logger.warn 'invalid user/token: %s %s', username.bold.cyan, token.bold.cyan
+        return socket.disconnect()
 
-    ## preload public key of this user for encryption
-    socket.publicKey = @ModelFactory.models.customer.sync.findById(username)?.PublicKey
+      ## preload public key of this user for encryption
+      socket.publicKey = @ModelFactory.models.customer.sync.findById(username)?.PublicKey
 
-    unless socket.publicKey
-      logger.warn '%s has no public key', username.bold.cyan
+      unless socket.publicKey
+        logger.warn '%s has no public key', username.bold.cyan
 
-    logger.debug '%s signed in with token=%s', username.bold.cyan, token.bold.cyan
-    socket.username = username
-    socket.join "user-#{ username }"
-    socket.privateKey = privateKey
+      logger.debug '%s signed in with token=%s', username.bold.cyan, token.bold.cyan
+      socket.username = username
+      socket.join "user-#{ username }"
+      socket.privateKey = privateKey
 
-    @server.emit 'user signed in', {username}
+      @server.emit 'user signed in', {username}
 
-    #TODO: test private/public matching
+      #TODO: test private/public matching
 
-    @pushNotification socket, username, privateKey, logError
+      @pushNotification socket, username, privateKey, logError
 
-    ## device id
-    return unless deviceId
-    @ModelFactory.models
-    .customer.sync
-    .update {
-      LastDeviceId: deviceId
-    }, {
-      LastDeviceId: null
-    }, {
-      multi: true
-    }
+      ## device id
+      return unless deviceId
+      @ModelFactory.models
+      .customer.sync
+      .update {
+        LastDeviceId: deviceId
+      }, {
+        LastDeviceId: null
+      }, {
+        multi: true
+      }
 
-    ## update latest device id and reset unread number to 0
-    @ModelFactory.models
-    .customer.sync
-    .findByIdAndUpdate username, {
-      LastDeviceId: deviceId
-      Badge: 0
-    }
+      ## update latest device id and reset unread number to 0
+      @ModelFactory.models
+      .customer.sync
+      .findByIdAndUpdate username, {
+        LastDeviceId: deviceId
+        Badge: 0
+      }
+    catch ex
+      logger.warn 'sign in exception', ex
 
   isSignedIn: (socket)->
     'string' is typeof socket.username
@@ -98,13 +104,17 @@ module.exports = class ChatService
     futures = [
       @retrieveSet.future "incoming:#{ username }"
       @retrieveSet.future "undelivered:#{ username }"
+      @retrieveSet.future "conversations:#{ username }"
     ]
 
-    [incoming, undelivered] = fibrous.wait futures
+    [incoming, undelivered, allConversations] = fibrous.wait futures
+    logger.debug '[incoming, undelivered]', [incoming, undelivered]
 
     if incoming?.length
       ## going to get all messages
-      array = @getMultipleHash 'messages', incoming
+      array = @getMultipleHash.sync 'messages', incoming...
+
+      logger.debug 'array', array
 
       ## we need to parse because messages are stored as JSON strings
       array = array.map (json)->
@@ -118,7 +128,10 @@ module.exports = class ChatService
       ## now we have an array of all messages,
       ## we need to group them by sender before sending back to client
       conversations = _.groupBy array, (m)-> m.conversation
-      socket.emit 'incoming message', conv, messages for conv,messages in conversations
+
+      logger.debug 'conversations', conversations
+
+      socket.emit 'incoming message', conv, messages for conv,messages of conversations
 
     if undelivered?.length
       ## undelivered is already an array of [conversation::fingerprint]
@@ -126,13 +139,20 @@ module.exports = class ChatService
 
       array = undelivered.map (value) -> value.split '::'
       conversations = _.groupBy array, (pair)-> pair[0]
+    else
+      conversations = {}
 
-      ## conversations is a hash of
-      ## key: conversation id
-      ## value: [conversation id, message fingerprint]
-      for conv,messages in conversations
-        socket.emit 'undelivered message', conv, messages.map (pair)-> pair[1]
 
+    ## conversations is a hash of
+    ## key: conversation id
+    ## value: [conversation id, message fingerprint]
+
+    ## we need to add empty conversations here
+    ## empty conversations are conversations that have all msg delivered
+    conversations[convId] = [] for convId in allConversations when !conversations[conv]
+
+    for conv,messages of conversations
+      socket.emit 'undelivered message', conv, messages.map (pair)-> pair[1]
 
 
 
@@ -194,6 +214,8 @@ module.exports = class ChatService
       @saveObj.future "messages", data
       @addToSet.future "incoming:#{ receiver }", message._id
       @addToSet.future "undelivered:#{ sender }", [convId, message.client_fingerprint].join '::'
+      ## it's here to know that which conversation is completely delivered
+      @addToSet.future "conversations:#{ sender }", convId
     ]
 
     fibrous.wait futures
