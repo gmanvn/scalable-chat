@@ -131,7 +131,8 @@ module.exports = class ChatService
 
       logger.debug 'conversations', conversations
 
-      socket.emit 'incoming message', conv, messages for conv,messages of conversations
+      for conv,messages of conversations
+        socket.emit 'incoming message', conv, _.sortBy messages, 'sent_timestamp'
 
     if undelivered?.length
       ## undelivered is already an array of [conversation::fingerprint]
