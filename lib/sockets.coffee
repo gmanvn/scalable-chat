@@ -97,9 +97,9 @@ class ScalableChatSocket
           }
           return
 
-        logger.trace "direct message: %s -> %s: %s",
-          message.sender.bold.grey, destination.bold.grey,
-          message.body.bold.yellow
+        logger.info "direct message: %s -> %s",
+          message.sender.bold.grey, destination.bold.grey
+          #message.body.bold.yellow
 
         chatService.directMessage io, socket, message.sender, destination, message, (ex)->
           if ex
