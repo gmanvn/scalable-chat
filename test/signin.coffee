@@ -78,7 +78,7 @@ module.exports = ({users, connect})->
       console.log 'dis', arguments...
       done()
 
-  it.only 'should allow only one connection to a user', (done)->
+  it 'should allow only one connection to a user', (done)->
     client1 = connect {
       username: user0
       token: 'key:' + user0

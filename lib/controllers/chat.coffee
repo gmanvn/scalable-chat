@@ -139,12 +139,14 @@ module.exports = class ChatService
 
       ## we need to parse because messages are stored as JSON strings
       array = array.map (json)->
-        m = JSON.parse json
+        try
+          m = JSON.parse json
 
-        ## JSON doesn't support datetime so we store it as timestamp
-        ## device expect datetime so we parse it here
-        m.sent_timestamp = new Date m.sent_timestamp
-        return m
+          ## JSON doesn't support datetime so we store it as timestamp
+          ## device expect datetime so we parse it here
+          m.sent_timestamp = new Date m.sent_timestamp
+          return m
+
 
       ## now we have an array of all messages,
       ## we need to group them by sender before sending back to client

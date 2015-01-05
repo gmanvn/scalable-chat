@@ -112,8 +112,9 @@ before fibrous ->
   del = -> server.redisData.del arguments...
 
   ## clean data
-  del.sync "incoming:#{ user1 }"
-  del.sync "undelivered:#{ user0 }"
+  for user in users
+    del.sync "test$incoming:#{ user._id }"
+    del.sync "test$undelivered:#{ user._id }"
 
   hmset.sync 'test$messages', 'msg000001', JSON.stringify message
   sadd.sync "test$incoming:#{ user1 }", 'msg000001'
