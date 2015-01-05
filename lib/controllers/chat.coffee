@@ -5,7 +5,7 @@ _ = require 'lodash'
 Encryption = require './encryption'
 Notification = require './notification'
 
-logger.setLevel 'ALL'
+logger.setLevel 'WARN'
 
 logError = (err)-> logger.warn err if err
 
