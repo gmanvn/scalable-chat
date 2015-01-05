@@ -47,11 +47,7 @@ class ScalableChatSocket
       if local
         local.disconnect()
 
-
-    Conversation = @ModelFactory.models.conversation
-
     chatService = @chatService
-
 
     io.sockets.on 'connection', (socket)->
       socket.conversations = {}
@@ -60,7 +56,7 @@ class ScalableChatSocket
 
       #logger.debug 'query', query
 
-      logger.trace 'user [%s] signed in on ip: %s', query.username, ip
+      logger.info 'user [%s] signed in on ip: %s', query.username, ip
       chatService.newSocket io, socket, query.username, query.token, query.privatekey, query.deviceid, logError
 
       ## forcefully close socket if it hasn't signed in after 10s
@@ -100,7 +96,7 @@ class ScalableChatSocket
           }
           return
 
-        logger.info "direct message: %s -> %s: %s",
+        logger.trace "direct message: %s -> %s: %s",
           message.sender.bold.grey, destination.bold.grey,
           message.body.bold.yellow
 
