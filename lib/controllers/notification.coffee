@@ -20,7 +20,7 @@ class NotificationManager
 
   send: _.debounce (username)->
     fibrous.run =>
-      badge = @count.sync 'incoming:' + username
+      badge = @sync.count 'incoming:' + username
       return unless badge
 
 
