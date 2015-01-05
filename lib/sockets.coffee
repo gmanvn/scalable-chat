@@ -54,7 +54,7 @@ class ScalableChatSocket
       ## forcefully close socket if it hasn't signed in after 2s
       setTimeout ->
         socket.disconnect() unless chatService.isSignedIn(socket)
-      , 2000
+      , 20000
 
       socket.on 'disconnect', ->
         logger.info '%s disconnected', socket.username or 'an unsigned in user'
