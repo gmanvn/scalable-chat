@@ -115,9 +115,9 @@ class ScalableChatSocket
 
       socket.on 'start typing', autoSpread (conversationId, username, participants, isTyping = true)->
         if isTyping
-          logger.info '%s is typing in conversation %s', username, conversationId
+          logger.trace '%s is typing in conversation %s', username, conversationId
         else
-          logger.info '%s has stop typing in conversation %s', username, conversationId
+          logger.trace '%s has stop typing in conversation %s', username, conversationId
 
         chatService.typing io, socket, conversationId, username, participants, isTyping, logError
 
