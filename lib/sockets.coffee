@@ -42,6 +42,12 @@ class ScalableChatSocket
     }
 
 
+    @scalableChatServer.on 'kick', ({socketId})->
+      local = namespace.sockets.connected[socketId]
+      if local
+        local.disconnect()
+
+
     Conversation = @ModelFactory.models.conversation
 
     chatService = @chatService
@@ -50,61 +56,21 @@ class ScalableChatSocket
     io.sockets.on 'connection', (socket)->
       socket.conversations = {}
       ip = socket.handshake.headers['x-forwarded-for'] or socket.handshake.address
+      query = socket.handshake.query or {}
 
-      ## forcefully close socket if it hasn't signed in after 2s
+      #logger.debug 'query', query
+
+      logger.trace 'user [%s] signed in on ip: %s', query.username, ip
+      chatService.newSocket io, socket, query.username, query.token, query.privatekey, query.deviceid, logError
+
+      ## forcefully close socket if it hasn't signed in after 10s
       setTimeout ->
         socket.disconnect() unless chatService.isSignedIn(socket)
-      , 20000
+      , 10000
 
       socket.on 'disconnect', ->
         logger.info '%s disconnected', socket.username or 'an unsigned in user'
         io.emit 'user leave'
-
-      socket.on 'user signed in', autoSpread (username, token, privateKey, deviceId)->
-        logger.trace 'user [%s] signed in on ip: %s', username, ip
-
-        ## this code is to add \n to private key
-        #        chunks = privateKey.match /(.{1,64})/g
-        #        privateKey = chunks.join '\n'
-        #        logger.debug 'private key', privateKey
-
-        chatService.newSocket io, socket, username, token, privateKey, deviceId, logError
-
-      socket.on 'conversation started', (other) ->
-        participants = [socket.username, other]
-        logger.info 'Start conversation between %s and %s', participants...
-
-
-        fibrous.run ->
-          ## get conversation of both participants
-          conv = Conversation.sync.findOne({
-            participants:
-              $all: participants
-          })
-
-          ## if no conversation found (they haven't chatted), create a new one
-          unless conv
-            conv = new Conversation {
-              participants
-            }
-
-            conv.sync.save()
-
-
-          socket.join "conversation-#{conv._id}"
-          socket.conversations[other] = conv._id
-          socket.emit 'incoming conversation', conv.toObject()
-
-      socket.on 'request: update conversation', (id)->
-        fibrous.run ->
-          conv = Conversation.sync.findById id
-
-          if conv
-            socket.emit 'updated conversation', conv.toObject()
-            return
-
-          socket.emit 'conversation not found', id
-
 
       socket.on 'outgoing message', autoSpread (message, destination)->
         unless message.sender

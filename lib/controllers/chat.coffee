@@ -5,7 +5,7 @@ _ = require 'lodash'
 Encryption = require './encryption'
 Notification = require './notification'
 
-logger.setLevel 'WARN'
+logger.setLevel 'ALL'
 
 logError = (err)-> logger.warn err if err
 
@@ -44,9 +44,17 @@ module.exports = class ChatService
           server.redisData[value] [server.env, redisKey].join('$'), params...
       )(key, value)
 
+  kick: (namespace, socketId) ->
+    local = namespace.sockets.connected[socketId]
+    if local
+      local.disconnect()
+    else
+      logger.info 'kick socket from other process', socketId
+      @server.emit 'kick', {socketId}
+
   newSocket: fibrous (io, socket, username, token, privateKey, deviceId)->
     try
-      logger.debug 'username, token, privateKey[0..20], deviceId', username, token, privateKey[0..20], deviceId
+      logger.debug 'username, token, privateKey[0..20], deviceId', username, token, privateKey?[0..20], deviceId
       return socket.disconnect() unless 'string' is typeof username
       return socket.disconnect() unless token?.length
 
@@ -66,8 +74,20 @@ module.exports = class ChatService
         logger.warn '%s has no public key', username.bold.cyan
 
       logger.debug '%s signed in with token=%s', username.bold.cyan, token.bold.cyan
+
+      ## check duplicated connection
+      roomName = "user-#{ username }"
+      room = io.sockets.adapter.rooms[roomName]
+      hasOtherConnection = room? and !!Object.keys(room).length
+
+      logger.debug 'room', room
+      if hasOtherConnection
+        others = Object.keys(room)
+        @kick io, other for other in others
+
+
       socket.username = username
-      socket.join "user-#{ username }"
+      socket.join roomName
       socket.privateKey = privateKey
 
       @server.emit 'user signed in', {username}

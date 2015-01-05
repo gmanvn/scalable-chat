@@ -2,14 +2,16 @@ fibrous = require 'fibrous'
 should = require('should')
 io = require('socket.io-client')
 config = require 'config'
+_ = require 'lodash'
 
 URL = 'http://0.0.0.0:3000'
 options =
   transports: ['websocket'],
   'force new connection': true
 
-connect = ->
-  io.connect URL, options
+connect = (query)->
+  opt = _.defaults {query}, options
+  io.connect URL, opt
 
 users = [
   '5492509f94c6a10f00228402'
