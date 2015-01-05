@@ -20,8 +20,8 @@ sleep = (ms) -> delay.sync ms
 module.exports = class ChatService
 
   constructor: (@server, @ModelFactory, config) ->
-    @encryption = new Encryption server, @ModelFactory
-    @notification = new Notification config, @ModelFactory
+    @encryption = new Encryption server, ModelFactory
+    @notification = new Notification server, config, ModelFactory
     queue = @queue = {}
 
     server.on 'outgoing message delivered', (message)->
@@ -221,7 +221,8 @@ module.exports = class ChatService
     ]
 
     fibrous.wait futures
-    logger.trace "saved"
+    logger.trace "saved. pushing"
+    push()
 
 
 

@@ -10,19 +10,24 @@ NOTIFICATION_DEBOUNCE = 1000
 
 class NotificationManager
 
-  constructor: (config, @ModelFactory)->
+  constructor: (@server, config, @ModelFactory)->
     @Customer = @ModelFactory.models.customer
 
     @conn = apn.Connection config.apn
 
+  count: (key, cb)->
+    @server.redisData.scard [@server.env, key].join('$'), cb
+
   send: _.debounce (username)->
     fibrous.run =>
+      badge = @count.sync 'incoming:' + username
+      return unless badge
+
+
       user = @Customer.sync.findById username
       return unless user
 
-      badge = user.Badge
       token = user.LastDeviceId
-
       return unless token
 
       message = new apn.Notification
