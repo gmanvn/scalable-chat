@@ -5,7 +5,7 @@ _ = require 'lodash'
 Encryption = require './encryption'
 Notification = require './notification'
 
-logger.setLevel 'WARN'
+logger.setLevel 'DEBUG'
 
 logError = (err)-> logger.warn err if err
 
@@ -157,6 +157,7 @@ module.exports = class ChatService
 
       logger.debug 'conversations', conversations
 
+      logger.info 'messages leaving server'
       console.time 'emit'
       for conv,messages of conversations
         socket.emit 'incoming message', conv, _.sortBy messages, 'sent_timestamp'
