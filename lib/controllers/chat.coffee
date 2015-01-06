@@ -122,6 +122,7 @@ module.exports = class ChatService
     'string' is typeof socket.username
 
   pushNotification: fibrous (socket, username)->
+    console.time 'query redis'
     futures = [
       @retrieveSet.future "incoming:#{ username }"
       @retrieveSet.future "undelivered:#{ username }"
@@ -129,6 +130,8 @@ module.exports = class ChatService
     ]
 
     [incoming, undelivered, allConversations] = fibrous.wait futures
+    console.timeEnd 'query redis'
+
     logger.debug '[incoming, undelivered]', [incoming, undelivered]
 
     if incoming?.length
@@ -154,8 +157,11 @@ module.exports = class ChatService
 
       logger.debug 'conversations', conversations
 
+      console.time 'emit'
       for conv,messages of conversations
         socket.emit 'incoming message', conv, _.sortBy messages, 'sent_timestamp'
+
+      console.timeEnd 'emit'
 
     if undelivered?.length
       ## undelivered is already an array of [conversation::fingerprint]
