@@ -182,6 +182,8 @@ module.exports = class ChatService
     ## empty conversations are conversations that have all msg delivered
     conversations[convId] = [] for convId in allConversations when !conversations[conv]
 
+    logger.debug 'UNDELIVERED conversations', conversations
+
     for conv,messages of conversations
       socket.emit 'undelivered message', conv, messages.map (pair)-> pair[1]
 
