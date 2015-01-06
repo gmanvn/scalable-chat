@@ -132,13 +132,13 @@ module.exports = class ChatService
     [incoming, undelivered, allConversations] = fibrous.wait futures
     console.timeEnd 'query redis'
 
-    logger.debug '[incoming, undelivered]', [incoming, undelivered]
+    #logger.debug '[incoming, undelivered]', [incoming, undelivered]
 
     if incoming?.length
       ## going to get all messages
       array = @getMultipleHash.sync 'messages', incoming...
 
-      logger.debug 'array', array
+      #logger.debug 'array', array
 
       ## we need to parse because messages are stored as JSON strings
       array = array.map (json)->
