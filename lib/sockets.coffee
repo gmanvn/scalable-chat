@@ -67,7 +67,6 @@ class ScalableChatSocket
 
       socket.on 'disconnect', ->
         logger.info '%s disconnected', socket.username or 'an unsigned in user'
-        io.emit 'user leave'
 
       socket.on 'outgoing message', autoSpread (message, destination)->
         unless message.sender
