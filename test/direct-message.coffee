@@ -72,7 +72,7 @@ module.exports = (params)->
       sender.emit 'outgoing message', message, user3
     , 100
 
-  it.only 'should not store message if receiver is online', (done)->
+  it 'should not store message if receiver is online', (done)->
     ## cache user_id for user2, 3
     user2 = users[2]._id
     user3 = users[3]._id

@@ -115,11 +115,12 @@ before fibrous ->
   for user in users
     del.sync "test$incoming:#{ user._id }"
     del.sync "test$undelivered:#{ user._id }"
+    del.sync "test$conversations:#{ user._id }"
 
   hmset.sync 'test$messages', 'msg000001', JSON.stringify message
   sadd.sync "test$incoming:#{ user1 }", 'msg000001'
   sadd.sync "test$undelivered:#{ user0 }", "#{conversation_id}::fp:user1:0002"
-
+  sadd.sync "test$conversations:#{ user0 }", conversation_id
 
   conv0_1 = {_id: conversation_id}
   users[0]._conversations[user1] = conv0_1

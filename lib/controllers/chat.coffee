@@ -124,12 +124,12 @@ module.exports = class ChatService
   pushNotification: fibrous (socket, username)->
     console.time 'query redis'
     futures = [
-      @retrieveSet.future "incoming:#{ username }"
       @retrieveSet.future "undelivered:#{ username }"
       @retrieveSet.future "conversations:#{ username }"
     ]
 
-    [incoming, undelivered, allConversations] = fibrous.wait futures
+    incoming = @retrieveSet.sync "incoming:#{ username }"
+
     console.timeEnd 'query redis'
 
     #logger.debug '[incoming, undelivered]', [incoming, undelivered]
@@ -164,6 +164,10 @@ module.exports = class ChatService
 
       console.timeEnd 'emit'
 
+
+    ## undelivered report
+    [undelivered, allConversations] = fibrous.wait futures
+
     if undelivered?.length
       ## undelivered is already an array of [conversation::fingerprint]
       ## we need to split them and group the result by conversation
@@ -173,14 +177,13 @@ module.exports = class ChatService
     else
       conversations = {}
 
-
     ## conversations is a hash of
     ## key: conversation id
     ## value: [conversation id, message fingerprint]
 
     ## we need to add empty conversations here
     ## empty conversations are conversations that have all msg delivered
-    conversations[convId] = [] for convId in allConversations when !conversations[conv]
+    conversations[convId] = [] for convId in allConversations when !conversations[convId]
 
     logger.debug 'UNDELIVERED conversations', conversations
 
@@ -258,7 +261,7 @@ module.exports = class ChatService
 
 
 
-  markDelivered: (io, socket, conversationId, message, cb) ->
+  markDelivered: (io, socket, conversationId, message) ->
     io.to("user-#{ message.sender }").emit('outgoing message delivered', conversationId, message.client_fingerprint)
 
     ## try to remove message in queue if it's on a same server
