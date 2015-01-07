@@ -122,7 +122,6 @@ module.exports = class ChatService
     'string' is typeof socket.username
 
   pushNotification: fibrous (socket, username)->
-    console.time 'query redis'
     futures = [
       @retrieveSet.future "undelivered:#{ username }"
       @retrieveSet.future "conversations:#{ username }"
