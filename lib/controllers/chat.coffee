@@ -127,7 +127,9 @@ module.exports = class ChatService
       @retrieveSet.future "conversations:#{ username }"
     ]
 
-    ###incoming = @retrieveSet.sync "incoming:#{ username }"
+    console.time 'query redis'
+
+    incoming = @retrieveSet.sync "incoming:#{ username }"
 
     console.timeEnd 'query redis'
 
@@ -161,7 +163,7 @@ module.exports = class ChatService
       for conv,messages of conversations
         socket.emit 'incoming message', conv, _.sortBy messages, 'sent_timestamp'
 
-      console.timeEnd 'emit'###
+      console.timeEnd 'emit'
 
 
     ## undelivered report

@@ -15,13 +15,13 @@ module.exports = (params)->
       username: user2
       token: 'key:' + user2
       privatekey:  users[2]._private_key
-      deviceid: '00000'
+      deviceid: false
     }
     receiver = connect {
       username: user3
       token: 'key:' + user3
       privatekey:  users[3]._private_key
-      deviceid: '00000'
+      deviceid: false
     }
     conversation = ''
 
@@ -82,7 +82,7 @@ module.exports = (params)->
       username: user2
       token: 'key:' + user2
       privatekey:  users[2]._private_key
-      deviceid: '00000'
+      deviceid: false
     }
     receiver = null
 
@@ -109,7 +109,7 @@ module.exports = (params)->
         username: user3
         token: 'key:' + user3
         privatekey:  users[3]._private_key
-        deviceid: '00000'
+        deviceid: false
       }
 
       receiver.on 'incoming message', (_conversation, incomingMessages) ->

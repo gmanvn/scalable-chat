@@ -17,7 +17,7 @@ module.exports = ({users, connect})->
       username: user0
       token: 'key:' + user0
       privatekey:  users[0]._private_key
-      deviceid: '00000'
+      deviceid: false
     }
 
     client0.on 'undelivered message', (conversation, messages)->
@@ -34,7 +34,7 @@ module.exports = ({users, connect})->
       username: user1
       token: 'key:' + user1
       privatekey:  users[1]._private_key
-      deviceid: '00000'
+      deviceid: false
     }
 
     client1.on 'incoming message', (conversation, messages)->
@@ -52,7 +52,7 @@ module.exports = ({users, connect})->
       username: user1
       token: 'fake'
       privatekey:  users[1]._private_key
-      deviceid: '00000'
+      deviceid: false
     }
 
     client1.on 'incoming message', (conversation, messages)->
@@ -68,7 +68,7 @@ module.exports = ({users, connect})->
       username: user0
       token: 'fake'
       privatekey:  users[0]._private_key
-      deviceid: '00000'
+      deviceid: false
     }
 
     client1.on 'undelivered message', (conversation, messages)->
@@ -82,13 +82,13 @@ module.exports = ({users, connect})->
     client1 = connect {
       username: user0
       token: 'key:' + user0
-      deviceid: '00000'
+      deviceid: false
     }
 
     client2 = connect {
       username: user0
       token: 'key:' + user0
-      deviceid: '00000'
+      deviceid: false
     }
 
     client1.on 'disconnect', ->
