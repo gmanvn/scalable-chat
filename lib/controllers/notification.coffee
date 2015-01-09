@@ -1,6 +1,7 @@
 logger = require('log4js').getLogger 'notification'
 fibrous = require 'fibrous'
 apn = require 'apn'
+request = require 'request'
 _ = require 'lodash'
 
 HOUR = 3600e3
@@ -12,9 +13,7 @@ class NotificationManager
 
   constructor: (@server, config, @ModelFactory)->
     @Customer = @ModelFactory.models.customer
-
-    @conn = apn.Connection config.apn
-
+    @apiBaseUrl = config.plumeApi
     @_deviceIdHash = {}
 
   count: (key, cb)->
@@ -51,16 +50,21 @@ class NotificationManager
       console.log 'token', token
       return unless typeof token is 'string'
 
-      message = new apn.Notification
-      message.expiry = ~~((24 * HOUR + Date.now()) / 1000)
-      message.alert = 'You have a new message.'
-      message.badge = badge
+#      message = new apn.Notification
+#      message.expiry = ~~((24 * HOUR + Date.now()) / 1000)
+#      message.alert = 'You have a new message.'
+#      message.badge = badge
 
       try
-        device = new apn.Device token
-
         logger.debug 'pushing message to device [%s] badge=%s', token.bold, String(badge).bold
-        @conn.pushNotification message, device
+
+        request.sync.post {
+          uri: "#{ @apiBaseUrl }/v1/notification/PushMessageNotification"
+          json:
+            DeviceToken: token
+            Badge: badge
+        }
+
       catch ex
         logger.warn 'cannot push message to device [%s]', ex
 

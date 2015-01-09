@@ -27,3 +27,5 @@ redis_data:
   port: 6379
   host: localhost
   auth: false
+
+plumeApi: https://apidev.plumechatapp.com
