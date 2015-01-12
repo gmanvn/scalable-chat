@@ -16,8 +16,8 @@ class NotificationManager
     @apiBaseUrl = config.plumeApi
     @_deviceIdHash = {}
 
-  count: (key, cb)->
-    @server.redisData.scard [@server.env, key].join('$'), cb
+  count: (key, field, cb)->
+    @server.redisData.hget [@server.env, key].join('$'), field, cb
 
   actualGetDeviceId: (customerId)->
     user = @Customer.sync.findById customerId
@@ -43,7 +43,8 @@ class NotificationManager
 
   send: (username)->
     fibrous.run =>
-      badge = @sync.count 'incoming:' + username
+      badge = Number @sync.count 'incoming_count', username
+      logger.debug 'badge', badge
       return unless badge
 
       token = @sync.getDeviceId username

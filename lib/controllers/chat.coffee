@@ -13,6 +13,12 @@ logError = (err)-> logger.warn err if err
 ## after this timeout, message will be stored in mongo
 DELIVERY_TIMEOUT = 3000
 
+## all of commands sequences from client
+COMMANDS = [
+  "\u200B" ## block
+  "\u202F" ## unblock
+]
+
 delay = (ms, cb)-> setTimeout cb, ms
 
 sleep = (ms) -> delay.sync ms
@@ -37,12 +43,12 @@ module.exports = class ChatService
       retrieveSet: 'smembers'
       getMultipleHash: 'hmget'
       removeFromHash: 'hdel'
+      increaseInHash: 'hincrby'
 
     for key,value of commands
       ((key, value) =>
         @[key] = (redisKey, params...) ->
-          server.redisData[value] [server.env, redisKey].join('$'), params...
-      )(key, value)
+          server.redisData[value] [server.env, redisKey].join('$'), params...)(key, value)
 
   kick: (namespace, socketId) ->
     local = namespace.sockets.connected[socketId]
@@ -255,6 +261,10 @@ module.exports = class ChatService
       @addToSet.future "conversations:#{ sender }", convId
     ]
 
+    ## if it's not a command, increase the unread count
+    futures.push @increaseInHash.future "incoming_count", receiver, 1 unless message.body in COMMANDS
+
+
     fibrous.wait futures
     logger.trace "saved. pushing"
     push()
@@ -275,6 +285,10 @@ module.exports = class ChatService
       @removeFromSet.future "incoming:#{ socket.username }", message._id
       @removeFromSet.future "undelivered:#{ message.sender }", [conversationId, message.client_fingerprint].join '::'
     ]
+
+    ## if it's not a command, increase the unread count
+    futures.push @increaseInHash.future "incoming_count", socket.username, -1 unless message.body in COMMANDS
+
 
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->
     participants.forEach (other)->

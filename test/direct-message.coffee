@@ -130,3 +130,62 @@ module.exports = (params)->
         receiver.emit 'incoming message received', conversation, incomingMessage
         done()
     , 300
+
+  it.only 'should not count BLOCK command in notification', (done)->
+    ## cache user_id for user2, 3
+    user2 = users[2]._id
+    user3 = users[3]._id
+
+    ## establish conenctions for user2 and user3 devices
+    sender = connect {
+      username: user2
+      token: 'key:' + user2
+      privatekey:  users[2]._private_key
+      deviceid: false
+    }
+    receiver = null
+
+    conversation = ''
+
+    ## signin respectively
+    sender.emit 'user signed in', user2, 'key:' + user2, users[2]._private_key
+
+    message =
+      sender: String user2
+      body: "\u200B"
+      client_fingerprint: 'fg:user2:0003'
+
+    sender.on 'outgoing message sent', (_conversation, fingerprint)->
+      conversation = _conversation
+      fingerprint.should.equal 'fg:user2:0003'
+
+    setTimeout ->
+      sender.emit 'outgoing message', message, user3
+    , 100
+
+    setTimeout ->
+      receiver = connect {
+        username: user3
+        token: 'key:' + user3
+        privatekey:  users[3]._private_key
+        deviceid: '000003'
+      }
+
+      receiver.on 'incoming message', (_conversation, incomingMessages) ->
+        conversation.should.equal _conversation
+        incomingMessages = [incomingMessages] unless incomingMessages.length
+
+        incomingMessage = incomingMessages[0]
+        ## should be object
+        #      console.log 'incomingMessage', incomingMessage
+
+        incomingMessage.should.not.be.a.string
+
+        incomingMessage.sender.should.equal String user2
+        incomingMessage.body.should.equal "\u200B"
+        incomingMessage.client_fingerprint.should.equal 'fg:user2:0003'
+
+        ## reply
+        receiver.emit 'incoming message received', conversation, incomingMessage
+        done()
+    , 300

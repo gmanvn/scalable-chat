@@ -47,6 +47,7 @@ before fibrous ->
   for userId, index in users
     customer = new Customer {_id: userId}
     customer.PublicKey = keys[index].public
+    customer.LastDeviceId = '00000'+ index
     customer.sync.save()
 
     ## private properties (for testing purpose only)
