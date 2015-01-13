@@ -20,15 +20,17 @@ users = [
   '549275c894c6a10f00229474'
 ]
 
-params = {
-  users
-  connect
-}
 
 
 Server = require '../lib/server'
 server = new Server config
 
+
+params = {
+  users
+  connect
+  redisData: server.redisData
+}
 
 ## init test data
 rsa = require 'node-rsa'

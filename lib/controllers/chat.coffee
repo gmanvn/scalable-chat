@@ -286,8 +286,11 @@ module.exports = class ChatService
       @removeFromSet.future "undelivered:#{ message.sender }", [conversationId, message.client_fingerprint].join '::'
     ]
 
-    ## if it's not a command, increase the unread count
-    futures.push @increaseInHash.future "incoming_count", socket.username, -1 unless message.body in COMMANDS
+    fibrous.run =>
+      results = fibrous.wait futures
+      if results[1] and message.body not in COMMANDS
+        ## if it's not a command, increase the unread count
+        @increaseInHash.sync "incoming_count", socket.username, -1
 
 
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->
