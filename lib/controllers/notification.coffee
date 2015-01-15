@@ -39,7 +39,10 @@ class NotificationManager
       delete @_deviceIdHash[customerId]
     , 1000 * 60 * 60 * 24
 
-    return  @_deviceIdHash[customerId] = token
+    ## cache device id if found
+    @_deviceIdHash[customerId] = token if token
+
+    return token
 
   send: (username)->
     fibrous.run =>
