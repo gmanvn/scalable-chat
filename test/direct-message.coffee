@@ -1,5 +1,8 @@
 fibrous = require 'fibrous'
 
+sleep = ((ms, cb)->
+  setTimeout(cb, ms)
+).sync
 
 module.exports = (params)->
 
@@ -213,9 +216,6 @@ module.exports = (params)->
 
     conversation = ''
 
-    ## signin respectively
-    sender.emit 'user signed in', user2, 'key:' + user2, users[2]._private_key
-
     message =
       sender: String user2
       body: 'double'
@@ -262,3 +262,53 @@ module.exports = (params)->
             setTimeout done, 100
         , 100
     , 300
+
+
+  it.only 'should not send push when in foreground', fibrous ->
+    ## cache user_id for user2, 3
+    user2 = users[2]._id
+    user3 = users[3]._id
+
+    ## establish conenctions for user2 and user3 devices
+    sender = connect {
+      username: user2
+      token: 'key:' + user2
+      privatekey:  users[2]._private_key
+      deviceid: false
+    }
+
+    receiver = connect {
+      username: user3
+      token: 'key:' + user3
+      privatekey:  users[3]._private_key
+      deviceid: '000003'
+    }
+
+    ## listen
+    receiver.on 'incoming message', (conversationId, messages)->
+
+    sleep 100
+
+    receiver.emit 'go to background'
+
+    sleep 100
+    message =
+      sender: String user2
+      body: 'background message'
+      client_fingerprint: 'fg:user2:0001'
+
+    countBefore = Number params.redisData.hget.bind(params.redisData).sync 'test$incoming_count', user3
+
+
+    sender.emit 'outgoing message', message, user3
+    sleep 10
+
+    count = Number params.redisData.hget.bind(params.redisData).sync 'test$incoming_count', user3
+    count.should.equal countBefore + 1
+
+    console.log 'count', count
+
+
+
+    receiver.emit 'go to foreground'
+    sleep 1000

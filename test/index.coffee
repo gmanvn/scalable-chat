@@ -24,21 +24,36 @@ users = [
 
 Server = require '../lib/server'
 server = new Server config
+hmset = -> server.redisData.hmset arguments...
+sadd = -> server.redisData.sadd arguments...
+del = -> server.redisData.del arguments...
 
+
+
+###------------##
+  Reset
+##------------###
+reset = fibrous ->
+  ## clean data
+  for user in users
+    del.sync "test$incoming:#{ user._id }"
+    del.sync "test$undelivered:#{ user._id }"
+    del.sync "test$conversations:#{ user._id }"
 
 params = {
   users
   connect
   redisData: server.redisData
+  reset
 }
 
 ## init test data
 rsa = require 'node-rsa'
 {keys} = require './keypairs'
+
 ###------------##
   Customer
 ##------------###
-
 before fibrous ->
   params.Customer = Customer = server.models.models.customer
   AuthToken = server.models.models.authentication_token
@@ -109,16 +124,7 @@ before fibrous ->
     sent_timestamp: yesterday + 3 * HOUR
     conversation_id: conversation_id
 
-
-  hmset = -> server.redisData.hmset arguments...
-  sadd = -> server.redisData.sadd arguments...
-  del = -> server.redisData.del arguments...
-
-  ## clean data
-  for user in users
-    del.sync "test$incoming:#{ user._id }"
-    del.sync "test$undelivered:#{ user._id }"
-    del.sync "test$conversations:#{ user._id }"
+  reset.sync()
 
   hmset.sync 'test$messages', 'msg000001', JSON.stringify message
   sadd.sync "test$incoming:#{ user1 }", 'msg000001'

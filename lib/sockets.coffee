@@ -5,6 +5,7 @@ fibrous = require 'fibrous'
 log4js = require 'log4js'
 logger = log4js.getLogger('socket');
 logger.setLevel 'INFO'
+Table = require 'cli-table'
 #############
 ChatService = require './controllers/chat'
 
@@ -67,6 +68,7 @@ class ScalableChatSocket
 
       socket.on 'disconnect', ->
         logger.info '%s disconnected', socket.username or 'an unsigned in user'
+        chatService.destroy io, socket
 
       socket.on 'outgoing message', autoSpread (message, destination)->
         unless message.sender
@@ -120,5 +122,12 @@ class ScalableChatSocket
 
         chatService.typing io, socket, conversationId, username, participants, isTyping, logError
 
+
+      socket.on 'go to background', ()->
+        chatService.setForeground io, socket, false
+
+      socket.on 'go to foreground', ()->
+        chatService.setForeground io, socket, true
+        chatService.pushNotification socket, socket.username, logError
 
 module.exports = ScalableChatSocket

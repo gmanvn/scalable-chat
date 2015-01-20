@@ -1,6 +1,7 @@
 fibrous = require 'fibrous'
 should = require 'should'
 logger = require('log4js').getLogger('CHAT')
+Table = require 'cli-table'
 _ = require 'lodash'
 Encryption = require './encryption'
 Notification = require './notification'
@@ -23,6 +24,28 @@ delay = (ms, cb)-> setTimeout cb, ms
 
 sleep = (ms) -> delay.sync ms
 
+timeStart = ()->
+  start = Date.now()
+
+  return (level, message, params...)->
+    end = Date.now()
+    duration = end - start
+    str = String(duration + 'ms').bold
+
+    color =
+      switch
+        when duration > 0   then 'green'
+        when duration > 30  then 'yellow'
+        when duration > 200 then 'red'
+
+
+    str = str[color]
+    params.push str
+
+
+    message += ': %s'
+    logger[level] message, params...
+
 module.exports = class ChatService
 
   constructor: (@server, @ModelFactory, config) ->
@@ -31,7 +54,7 @@ module.exports = class ChatService
     queue = @queue = {}
 
     server.on 'outgoing message delivered', (message)->
-      logger.debug 'message', message._id
+      logger.debug '%s ->\t message', socket.username, message._id
       delete queue[message._id]
 
     commands =
@@ -55,97 +78,136 @@ module.exports = class ChatService
     if local
       local.disconnect()
     else
-      logger.info 'kick socket from other process', socketId
+      logger.info '%s ->\t kick socket from other process', socket.username, socketId
       @server.emit 'kick', {socketId}
 
   newSocket: fibrous (io, socket, username, token, privateKey, deviceId)->
     try
+
       logger.debug 'username, token, privateKey[0..20], deviceId', username, token, privateKey?[0..20], deviceId
-      return socket.disconnect() unless 'string' is typeof username
+      unless 'string' is typeof username
+        return socket.disconnect()
+
       return socket.disconnect() unless token?.length
+
+      logger.debug '%s ->\t %s started', username.bold.cyan, 'SIGN IN'.bold.underline
+
+      logger.debug '%s ->\t  ├──── checking authentication...', username.bold.cyan
 
       auth = @ModelFactory.models.authentication_token.sync.findOne {
         CustomerId: username
         AuthenticationKey: token
       }
 
-      unless auth
-        logger.warn 'invalid user/token: %s %s', username.bold.cyan, token.bold.cyan
+      if auth
+        logger.debug '%s ->\t  ├──── %s authenticated', username.bold.cyan, 'OK'.bold.green
+      else
+        logger.warn ' %s ->\t  ├──── %s %s: %s', username.bold.cyan, 'NOT OK'.bold.red, 'invalid token'.bold, token.bold.cyan
         return socket.disconnect()
 
+
       ## preload public key of this user for encryption
-      socket.publicKey = @ModelFactory.models.customer.sync.findById(username)?.PublicKey
-
-      unless socket.publicKey
-        logger.warn '%s has no public key', username.bold.cyan
-
-      logger.debug '%s signed in with token=%s', username.bold.cyan, token.bold.cyan
+      # socket.publicKey = @ModelFactory.models.customer.sync.findById(username)?.PublicKey
+      #
+      # unless socket.publicKey
+      #  logger.warn '%s ->\t has no public key', username.bold.cyan
 
       ## check duplicated connection
+      logger.debug '%s ->\t  ├──── checking duplicated connection...', username.bold.cyan
       roomName = "user-#{ username }"
       room = io.sockets.adapter.rooms[roomName]
       hasOtherConnection = room? and !!Object.keys(room).length
 
-      logger.debug 'room', room
       if hasOtherConnection
+        logger.debug '%s ->\t  ├──── %s existing connections', username.bold.cyan, 'NOT OK'.bold.red, room
         others = Object.keys(room)
         @kick io, other for other in others
+      else
+        logger.debug '%s ->\t  ├──── %s no duplicated connections', username.bold.cyan, 'OK'.bold.green
 
 
       socket.username = username
       socket.join roomName
-      socket.privateKey = privateKey
+      #socket.privateKey = privateKey
+
 
       @server.emit 'user signed in', {username}
+      logger.debug '%s ->\t  ├──── SOCKET >> "%s"', username.bold.cyan, 'user signed in'.blue
 
-      #TODO: test private/public matching
-
-      @pushNotification socket, username, privateKey, logError
 
       ## device id
-      return unless deviceId
-      @ModelFactory.models
-      .customer.sync
-      .update {
-        LastDeviceId: deviceId
-      }, {
-        LastDeviceId: null
-      }, {
-        multi: true
-      }
+      deviceId = false if typeof deviceId is 'string' and deviceId is 'false'
 
-      ## update latest device id and reset unread number to 0
-      @ModelFactory.models
-      .customer.sync
-      .findByIdAndUpdate username, {
-        LastDeviceId: deviceId
-        Badge: 0
-      }
+
+      futures = [
+        @future.pushNotification socket, username, privateKey
+        @future.updateDeviceToken deviceId, username
+      ]
+
+      fibrous.wait futures
+      @setForeground io, socket, true
+
+
     catch ex
-      logger.warn 'sign in exception', ex
+      logger.warn '%s ->\t sign in exception', username, ex
+    finally
+      logger.debug '%s ->\t  └──── Done signing in', username.bold.cyan
+      logger.debug '%s ->', username.bold.cyan
+
+  setForeground: (io, socket, onForeground) ->
+    obj = {}
+    obj[socket.username] = !!onForeground
+
+    logger.debug '%s ->\t set foreground %s', socket.username.bold.cyan, onForeground, obj
+
+    fibrous.run =>
+      @saveObj 'online', obj
 
   isSignedIn: (socket)->
     'string' is typeof socket.username
 
+  updateDeviceToken: fibrous (deviceId, username)->
+    unless deviceId
+      logger.debug '%s ->\t  ├──── no device token. skip updating!', username.bold.cyan
+      return
+
+    logger.debug '%s ->\t  ├──── updating device token... (%s)', username.bold.cyan, deviceId.bold
+
+
+    @ModelFactory.models
+    .customer.sync
+    .update {
+      LastDeviceId: deviceId
+    }, {
+      LastDeviceId: null
+    }, {
+      multi: true
+    }
+
+    ## update latest device id and reset unread number to 0
+    @ModelFactory.models
+    .customer.sync
+    .findByIdAndUpdate username, {
+      LastDeviceId: deviceId
+      Badge: 0
+    }
+
   pushNotification: fibrous (socket, username)->
+    logger.debug '%s ->\t  ├──── %s', username.bold.cyan, 'BROADCAST OFFLINE DETAIL'.bold.underline
     futures = [
       @retrieveSet.future "undelivered:#{ username }"
       @retrieveSet.future "conversations:#{ username }"
     ]
 
-    console.time 'query redis'
+    end = timeStart()
 
     incoming = @retrieveSet.sync "incoming:#{ username }"
 
-    console.timeEnd 'query redis'
-
-    #logger.debug '[incoming, undelivered]', [incoming, undelivered]
+    end 'debug', '%s ->\t  │      ├──── query redis', username.bold.cyan
 
     if incoming?.length
       ## going to get all messages
       array = @getMultipleHash.sync 'messages', incoming...
-
-      #logger.debug 'array', array
 
       ## we need to parse because messages are stored as JSON strings
       array = array.map (json)->
@@ -162,14 +224,16 @@ module.exports = class ChatService
       ## we need to group them by sender before sending back to client
       conversations = _.groupBy array, (m)-> m.conversation
 
-      logger.debug 'conversations', conversations
+      logger.debug '%s ->\t  │      ├──── INCOMING', username.bold.cyan, conversations
 
-      logger.info 'messages leaving server'
+      logger.info ' %s ->\t  │      ├──── messages leaving server', username.bold.cyan
       console.time 'emit'
       for conv,messages of conversations
         socket.emit 'incoming message', conv, _.sortBy messages, 'sent_timestamp'
 
       console.timeEnd 'emit'
+    else
+      logger.debug '%s ->\t  │      ├──── INCOMING: empty', username.bold.cyan
 
 
     ## undelivered report
@@ -192,11 +256,12 @@ module.exports = class ChatService
     ## empty conversations are conversations that have all msg delivered
     conversations[convId] = [] for convId in allConversations when !conversations[convId]
 
-    logger.debug 'UNDELIVERED conversations', conversations
+    logger.debug '%s ->\t  │      ├──── UNDELIVERED', username.bold.cyan, conversations
 
     for conv,messages of conversations
       socket.emit 'undelivered message', conv, messages.map (pair)-> pair[1]
 
+    logger.debug '%s ->\t  │      └──── Done broadcasting offline details', username.bold.cyan
 
 
   directMessage: fibrous (io, socket, sender, receiver, message)->
@@ -266,8 +331,17 @@ module.exports = class ChatService
 
 
     fibrous.wait futures
-    logger.trace "saved. pushing"
-    push()
+    logger.trace "%s ->\t saved. pushing", socket.username.bold.cyan
+
+    ## check real online status
+    [online] = @getMultipleHash.sync 'online', receiver
+
+
+    logger.debug '%s ->\t %s is online=%s', socket.username.bold.cyan, receiver, online
+
+    if online isnt 'true'
+      logger.debug '%s -> \t PUSH TO APPLE', socket.username
+      push()
 
 
 
@@ -296,3 +370,6 @@ module.exports = class ChatService
   typing: fibrous (io, socket, conversationId, username, participants, isTyping)->
     participants.forEach (other)->
       io.to("user-#{ other }").emit('other is typing', conversationId, username, isTyping)
+
+  destroy: (io, socket)->
+    @setForeground io, socket, false
