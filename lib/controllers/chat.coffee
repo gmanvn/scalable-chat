@@ -199,45 +199,6 @@ module.exports = class ChatService
       @retrieveSet.future "conversations:#{ username }"
     ]
 
-### skip sending incoming messages
-    end = timeStart()
-
-    incoming = @retrieveSet.sync "incoming:#{ username }"
-
-    end 'debug', '%s ->\t  │      ├──── query redis', username.bold.cyan
-
-    if incoming?.length
-      ## going to get all messages
-      array = @getMultipleHash.sync 'messages', incoming...
-
-      ## we need to parse because messages are stored as JSON strings
-      array = array.map (json)->
-        try
-          m = JSON.parse json
-
-          ## JSON doesn't support datetime so we store it as timestamp
-          ## device expect datetime so we parse it here
-          m.sent_timestamp = new Date m.sent_timestamp
-          return m
-
-
-      ## now we have an array of all messages,
-      ## we need to group them by sender before sending back to client
-      conversations = _.groupBy array, (m)-> m.conversation
-
-      logger.debug '%s ->\t  │      ├──── INCOMING', username.bold.cyan, conversations
-
-      logger.info ' %s ->\t  │      ├──── messages leaving server', username.bold.cyan
-      console.time 'emit'
-      for conv,messages of conversations
-        socket.emit 'incoming message', conv, _.sortBy messages, 'sent_timestamp'
-
-      console.timeEnd 'emit'
-    else
-      logger.debug '%s ->\t  │      ├──── INCOMING: empty', username.bold.cyan
-
-###
-
     ## undelivered report
     [undelivered, allConversations] = fibrous.wait futures
 
