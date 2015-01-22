@@ -199,6 +199,7 @@ module.exports = class ChatService
       @retrieveSet.future "conversations:#{ username }"
     ]
 
+### skip sending incoming messages
     end = timeStart()
 
     incoming = @retrieveSet.sync "incoming:#{ username }"
@@ -235,6 +236,7 @@ module.exports = class ChatService
     else
       logger.debug '%s ->\t  │      ├──── INCOMING: empty', username.bold.cyan
 
+###
 
     ## undelivered report
     [undelivered, allConversations] = fibrous.wait futures
